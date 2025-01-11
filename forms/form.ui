@@ -85,7 +85,7 @@
         </widget>
        </item>
        <item row="0" column="0" colspan="2">
-        <widget class="ZoomableGraphicsView" name="graphicsViewImage">
+        <widget class="ClassGridGraphicsView" name="graphicsViewImage">
          <property name="contextMenuPolicy">
           <enum>Qt::DefaultContextMenu</enum>
          </property>
@@ -117,6 +117,7 @@
     </property>
     <addaction name="actionImageZoomIn"/>
     <addaction name="actionImageZoomOut"/>
+    <addaction name="actionResetImageScale"/>
    </widget>
    <addaction name="menu"/>
    <addaction name="menu_2"/>
@@ -132,7 +133,7 @@
     <string>Приблизить изображение</string>
    </property>
    <property name="shortcut">
-    <string/>
+    <string>Ctrl+Shift+=</string>
    </property>
   </action>
   <action name="actionImageZoomOut">
@@ -180,12 +181,20 @@
     <string>Изменить размер сетки</string>
    </property>
   </action>
+  <action name="actionResetImageScale">
+   <property name="text">
+    <string>Восстановить размер изображения</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ZoomableGraphicsView</class>
+   <class>ClassGridGraphicsView</class>
    <extends>QGraphicsView</extends>
-   <header>zoomablegraphicsview.h</header>
+   <header>forms.implemented_widgets.ClassGridGraphicsView</header>
   </customwidget>
  </customwidgets>
  <resources/>
