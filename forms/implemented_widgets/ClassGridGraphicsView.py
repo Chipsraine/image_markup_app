@@ -6,14 +6,8 @@ from PyQt5.QtCore import Qt, QRect
 import numpy as np
 from grid.area.Area import Area
 from grid.area.Point import Point
-from grid.Class import Class
-from grid.ClassGrid import ClassGrid
 from forms.implemented_widgets.ZoomableGraphicsView import ZoomableGraphicsView
-from AppSettings import *
-
-
-
-
+from AppState import *
 
 
 class ClassGridGraphicsView(ZoomableGraphicsView):
@@ -36,7 +30,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         self.source_image_item.mousePressEvent = self.touchGrid
         
-        self.appSettings : AppSettings = None
+        self.appSettings : AppState = None
         self.areaRect : Area = Area()
     
     def isGridSet(self):
@@ -45,7 +39,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def isInteractable(self):
         return self.appSettings.activeClass != None and self.isGridSet()
     
-    def setAppSettings(self, settings : AppSettings):
+    def setAppSettings(self, settings : AppState):
         self.appSettings = settings
         
     def setAllEmptyCellsToActiveClass(self):
@@ -78,6 +72,9 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         row = y // activeGrid.cellSize["height"]
         col = x // activeGrid.cellSize["width"]
+        
+        if not activeGrid.table.isCellInsideGrid(row, col):
+            return
         
         if activeTool == Tool.AREA_TOOL:
             self.selectArea(row, col)

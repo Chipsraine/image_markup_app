@@ -13,6 +13,9 @@ class ClassGridTable:
     def setSize(self, resizeStrategy: ResizeStrategy):
         resizeStrategy.resize(self)
         
+    def isCellInsideGrid(self, row, col):
+        return 0 <= row < self.rows and 0 <= col < self.cols 
+        
         
     def setClassToCell(self, row, col, _class):
         try:

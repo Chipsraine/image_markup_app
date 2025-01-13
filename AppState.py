@@ -23,8 +23,7 @@ class AppEvents(QObject):
 
 
     
-class AppSettings:
-    
+class AppState:
     def __init__(self):
         self.events = AppEvents()
         self.activeClass : Class = None
