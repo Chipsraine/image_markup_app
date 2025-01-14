@@ -28,23 +28,28 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.scene().addItem(self.mask_image_item)
         self.scene().addItem(self.tool_image_item)
         
-        self.source_image_item.mousePressEvent = self.touchGrid
+        self.source_image_item.mousePressEvent = self.mousePressOnGrid
+        self.source_image_item.mouseMoveEvent = self.mouseMoveOnGrid
+        self.source_image_item.mouseReleaseEvent = self.mouseReleaseOnGrid
         
-        self.appSettings : AppState = None
+        self.appState : AppState = None
         self.areaRect : Area = Area()
+        
+        self.mousePressed = False
+        self.lastTouchedPoint = None
     
     def isGridSet(self):
-        return self.appSettings.activeGrid != None and self.appSettings.activeImage != None
+        return self.appState.activeGrid != None and self.appState.activeImage != None
     
     def isInteractable(self):
-        return self.appSettings.activeClass != None and self.isGridSet()
+        return self.appState.activeClass != None and self.isGridSet()
     
     def setAppSettings(self, settings : AppState):
-        self.appSettings = settings
+        self.appState = settings
         
     def setAllEmptyCellsToActiveClass(self):
         if self.isInteractable():
-            self.appSettings.activeGrid.fillEmptyCellsWithClass(self.appSettings.activeClass)
+            self.appState.activeGrid.fillEmptyCellsWithClass(self.appState.activeClass)
     
     def selectArea(self, row, col):
         touchPoint = Point(row, col)
@@ -59,43 +64,58 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             
             
         self.paintToolArea()
-
-    def touchGrid(self, event):
-        if not self.isInteractable() or self.appSettings.activeTool == Tool.NO_TOOL:
-            return
         
-        activeGrid = self.appSettings.activeGrid
-        activeTool = self.appSettings.activeTool
-
+    def getEventPoint(self, event):
         x = int(event.pos().x())
         y = int(event.pos().y())
         
-        row = y // activeGrid.cellSize["height"]
-        col = x // activeGrid.cellSize["width"]
+        col = x // self.appState.activeGrid.cellSize["width"]
+        row = y // self.appState.activeGrid.cellSize["height"]
         
-        if not activeGrid.table.isCellInsideGrid(row, col):
-            return
+        return Point(row, col)
         
-        if activeTool == Tool.AREA_TOOL:
-            self.selectArea(row, col)
-            return
+
+    def mousePressOnGrid(self, event):
+        eventPoint = self.getEventPoint(event)      
+        self.lastTouchedPoint = eventPoint
         
-        activeClass = self.appSettings.activeClass
-        
-        if activeClass == None:
-            return
-        
-        if activeTool == Tool.DELETE_TOOL:
-            activeGrid.setClassToCell(row, col, None)
-        elif activeTool == Tool.ASSIGN_TOOL:
-            activeGrid.setClassToCell(row, col, activeClass)
+        if self.isInteractable() and self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
+            self.manageMouseTool(eventPoint)
             
+        self.mousePressed = True
+            
+    def mouseMoveOnGrid(self, event):
+        if self.mousePressed == False or not self.isGridSet():
+            return
         
+        eventPoint = self.getEventPoint(event)
+        
+        if self.lastTouchedPoint == eventPoint or not self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
+            return
+        
+        self.manageMouseTool(eventPoint)
+        self.lastTouchedPoint = eventPoint
+        
+    def mouseReleaseOnGrid(self, event):
+        self.lastTouchedPoint = None
+        self.mousePressed = False
+        
+        
+    def manageMouseTool(self, point):
+        activeTool = self.appState.activeTool
+        activeClass = self.appState.activeClass
+        activeGrid = self.appState.activeGrid
+        
+        if activeTool == Tool.ASSIGN_TOOL and activeClass != None:
+            activeGrid.setClassToCell(point.row, point.col, activeClass)
+        elif activeTool == Tool.DELETE_TOOL and activeGrid.getCellClass(point.row, point.col) != None:
+            activeGrid.setClassToCell(point.row, point.col, None)
+
     def updateCellHandler(self, row, col):
         painter = QPainter()
         painter.begin(self.mask_image)
         
-        cellClass = self.appSettings.activeGrid.getCellClass(row, col)
+        cellClass = self.appState.activeGrid.getCellClass(row, col)
         
         
         self.eraseCell(painter, row, col)
@@ -108,18 +128,18 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.mask_image_item.setPixmap(self.mask_image)
         
     def setImage(self):
-        self.sourceHeight = self.appSettings.activeImage.size().height()
-        self.sourceWidth = self.appSettings.activeImage.size().width()
-        self.source_image_item.setPixmap(self.appSettings.activeImage)
+        self.sourceHeight = self.appState.activeImage.size().height()
+        self.sourceWidth = self.appState.activeImage.size().width()
+        self.source_image_item.setPixmap(self.appState.activeImage)
 
     def unlinkGrid(self):
-        self.appSettings.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
-        self.appSettings.activeGrid.signals_emitter.updateAllCells.disconnect(self.paintGrid)
+        self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
+        self.appState.activeGrid.signals_emitter.updateAllCells.disconnect(self.updateAllCellsHandler)
         
     def linkGrid(self):
-        self.appSettings.activeGrid.signals_emitter.updateCell.connect(self.updateCellHandler)
-        self.appSettings.activeGrid.signals_emitter.updateAllCells.connect(self.paintGrid)
-        self.paintGrid()
+        self.appState.activeGrid.signals_emitter.updateCell.connect(self.updateCellHandler)
+        self.appState.activeGrid.signals_emitter.updateAllCells.connect(self.updateAllCellsHandler)
+        self.updateAllCellsHandler()
 
     def createBlankImage(self):
         img_height, img_width = int(self.source_image_item.boundingRect().height()), int(self.source_image_item.boundingRect().width())
@@ -141,8 +161,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.setPen(pen)
         painter.setBrush(brush)
                     
-        width = self.appSettings.activeGrid.cellSize["width"]
-        height = self.appSettings.activeGrid.cellSize["height"]
+        width = self.appState.activeGrid.cellSize["width"]
+        height = self.appState.activeGrid.cellSize["height"]
                                         
         rect = QRect(col * width, row * height, width, height)
         painter.drawRect(rect)
@@ -156,8 +176,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.setPen(pen)
         painter.setBrush(brush)
                     
-        width = self.appSettings.activeGrid.cellSize["width"]
-        height = self.appSettings.activeGrid.cellSize["height"]
+        width = self.appState.activeGrid.cellSize["width"]
+        height = self.appState.activeGrid.cellSize["height"]
                                         
         rect = QRect(col * width, row * height, width, height)
         
@@ -166,7 +186,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.drawRect(rect)
         painter.setCompositionMode(mode)
             
-    def paintGrid(self):
+    def updateAllCellsHandler(self):
         
         self.resetMask()
         
@@ -174,7 +194,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         painter.begin(self.mask_image)
 
-        activeGrid = self.appSettings.activeGrid
+        activeGrid = self.appState.activeGrid
 
         for row in range(activeGrid.table.rows):
             for col in range(activeGrid.table.cols):
@@ -196,7 +216,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.begin(self.tool_image)
         
         if self.areaRect.firstPoint != None:
-            cellWidth, cellHeight = self.appSettings.activeGrid.cellSize["width"], self.appSettings.activeGrid.cellSize["height"]
+            cellWidth, cellHeight = self.appState.activeGrid.cellSize["width"], self.appState.activeGrid.cellSize["height"]
             x, y = self.areaRect.firstPoint.col * cellWidth, self.areaRect.firstPoint.row * cellHeight
             if self.areaRect.secondPoint != None:
                 areaWidth, areaHeight = (self.areaRect.secondPoint.col - self.areaRect.firstPoint.col + 1) * cellWidth, (self.areaRect.secondPoint.row - self.areaRect.firstPoint.row + 1) * cellWidth
@@ -219,4 +239,4 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             return
         
         if self.areaRect.firstPoint != None and self.areaRect.secondPoint != None:
-            self.appSettings.activeGrid.setClassToArea(self.areaRect, self.appSettings.activeClass)
+            self.appState.activeGrid.setClassToArea(self.areaRect, self.appState.activeClass)

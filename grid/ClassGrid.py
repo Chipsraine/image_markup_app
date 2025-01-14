@@ -53,7 +53,7 @@ class ClassGrid:
         
     def setClassToCell(self, row, col, _class):
 
-        self.table.switchCellClass(row, col, _class)
+        self.table.setClassToCell(row, col, _class)
         self.signals_emitter.updateCell.emit(row, col)
         
     def removeClassFromCell(self, row, col):
