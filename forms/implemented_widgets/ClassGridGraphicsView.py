@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt, QRect, QPoint, QSize
 
 import numpy as np
 from grid.area.Area import Area
@@ -35,6 +35,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.appState : AppState = None
         self.selectArea : Area = Area()
         
+        self.mouseInside = False
         self.mousePressed = False
         self.lastTouchedPoint = None
     
@@ -62,6 +63,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
 
     def mousePressOnGrid(self, event):
+        
         eventPoint = self.getEventPoint(event)      
         self.lastTouchedPoint = eventPoint
         
@@ -71,9 +73,18 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             self.manageMouseTool(eventPoint)
             
         self.mousePressed = True
+    
+    def mouseInWidget(self, event):
+        scrollOffsetX = self.verticalScrollBar().width() if self.verticalScrollBar().isVisible() else 0
+        scrollOffsetY = self.horizontalScrollBar().height() if self.horizontalScrollBar().isVisible() else 0
+        widgetWidth = self.geometry().size().width() - scrollOffsetX
+        widgetHeight = self.geometry().size().height() - scrollOffsetY
+        allowedAreaRect = QRect(self.mapToGlobal(QPoint(self.geometry().topLeft())), QSize(widgetWidth, widgetHeight))
+        return allowedAreaRect.contains(self.mapToParent(event.screenPos()))
             
     def mouseMoveOnGrid(self, event):
-        if self.mousePressed == False or not self.isGridSet():
+        
+        if self.mousePressed == False or not self.isGridSet() or not self.mouseInWidget(event):
             return
         
         eventPoint = self.getEventPoint(event)

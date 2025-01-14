@@ -26,7 +26,7 @@ class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
         
         
     def test(self):
-        self.appState.activeTool = Tool.DELETE_TOOL
+        self.appState.activeTool = Tool.SELECT_AREA_TOOL
         image = QPixmap(r"example.jpg")
         imageSize = {"height": image.size().height(), "width": image.size().width()}
         self.appState.setActiveImage(image)
