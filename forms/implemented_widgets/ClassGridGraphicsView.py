@@ -33,7 +33,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.source_image_item.mouseReleaseEvent = self.mouseReleaseOnGrid
         
         self.appState : AppState = None
-        self.areaRect : Area = Area()
+        self.selectArea : Area = Area()
         
         self.mousePressed = False
         self.lastTouchedPoint = None
@@ -50,20 +50,6 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def setAllEmptyCellsToActiveClass(self):
         if self.isInteractable():
             self.appState.activeGrid.fillEmptyCellsWithClass(self.appState.activeClass)
-    
-    def selectArea(self, row, col):
-        touchPoint = Point(row, col)
-        
-        if self.areaRect.firstPoint != None and self.areaRect.secondPoint != None:
-            self.areaRect.firstPoint = None
-            self.areaRect.secondPoint = None
-        elif self.areaRect.firstPoint == None:
-            self.areaRect.setFirstPoint(touchPoint)
-        elif self.areaRect.secondPoint == None:
-            self.areaRect.setSecondPoint(touchPoint)
-            
-            
-        self.paintToolArea()
         
     def getEventPoint(self, event):
         x = int(event.pos().x())
@@ -80,6 +66,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.lastTouchedPoint = eventPoint
         
         if self.isInteractable() and self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
+            self.selectArea.setFirstPoint(eventPoint)
+            self.selectArea.setSecondPoint(eventPoint)
             self.manageMouseTool(eventPoint)
             
         self.mousePressed = True
@@ -93,8 +81,10 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         if self.lastTouchedPoint == eventPoint or not self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
             return
         
+        self.selectArea.setSecondPoint(eventPoint)
         self.manageMouseTool(eventPoint)
         self.lastTouchedPoint = eventPoint
+        
         
     def mouseReleaseOnGrid(self, event):
         self.lastTouchedPoint = None
@@ -110,6 +100,9 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             activeGrid.setClassToCell(point.row, point.col, activeClass)
         elif activeTool == Tool.DELETE_TOOL and activeGrid.getCellClass(point.row, point.col) != None:
             activeGrid.setClassToCell(point.row, point.col, None)
+        elif activeTool == Tool.SELECT_AREA_TOOL:
+            self.paintToolArea()
+            
 
     def updateCellHandler(self, row, col):
         painter = QPainter()
@@ -215,15 +208,14 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         painter.begin(self.tool_image)
         
-        if self.areaRect.firstPoint != None:
+        if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
             cellWidth, cellHeight = self.appState.activeGrid.cellSize["width"], self.appState.activeGrid.cellSize["height"]
-            x, y = self.areaRect.firstPoint.col * cellWidth, self.areaRect.firstPoint.row * cellHeight
-            if self.areaRect.secondPoint != None:
-                areaWidth, areaHeight = (self.areaRect.secondPoint.col - self.areaRect.firstPoint.col + 1) * cellWidth, (self.areaRect.secondPoint.row - self.areaRect.firstPoint.row + 1) * cellWidth
-            else:
-                areaWidth, areaHeight = cellWidth, cellWidth
+            x, y = self.selectArea.firstPoint.col * cellWidth, self.selectArea.firstPoint.row * cellHeight
+            offsetCol = 1 if self.selectArea.secondPoint.col >= self.selectArea.firstPoint.col else 0
+            offsetRow = 1 if self.selectArea.secondPoint.row >= self.selectArea.firstPoint.row else 0
+            areaWidth = (self.selectArea.secondPoint.col - self.selectArea.firstPoint.col + offsetCol) * cellWidth
+            areaHeight = (self.selectArea.secondPoint.row - self.selectArea.firstPoint.row + offsetRow) * cellWidth
 
-            
             paintingRect = QRect(x, y, areaWidth, areaHeight)
             pen = QPen(Qt.GlobalColor.red, 2)
             painter.setPen(pen)
@@ -238,5 +230,5 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         if not self.isGridSet():
             return
         
-        if self.areaRect.firstPoint != None and self.areaRect.secondPoint != None:
-            self.appState.activeGrid.setClassToArea(self.areaRect, self.appState.activeClass)
+        if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
+            self.appState.activeGrid.setClassToArea(self.selectArea, self.appState.activeClass)

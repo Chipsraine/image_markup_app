@@ -8,7 +8,7 @@ class Tool(Enum):
     NO_TOOL = 1
     ASSIGN_TOOL = 2
     DELETE_TOOL = 3
-    AREA_TOOL = 4
+    SELECT_AREA_TOOL = 4
     
     
 # class Image:

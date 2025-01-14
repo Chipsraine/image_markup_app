@@ -19,8 +19,10 @@ class ClassGridTableJson:
         data = []
         for row in range(table.rows):
             for col in range(table.cols):
-                className = table.getCellClass(row, col)._name
-                data.append({"row": row, "col": col, "class": className})
+
+                _class = table.getCellClass(row, col)
+                if _class != None:
+                    data.append({"row": row, "col": col, "class": _class._name})
         jsonObject["data"] = data
         
         return jsonObject
