@@ -2,8 +2,10 @@ from grid.ClassGridTable import ClassGridTable
 
 class ClassGridTableJson:
     @staticmethod
-    def fromJson(jsonObject, classes):
-        table : ClassGridTable = ClassGridTable(jsonObject["rows"], jsonObject["cols"])
+    def fromJson(jsonObject, classes, cellSize, imageSize):
+        rows = imageSize["height"] // cellSize["height"]
+        cols = imageSize["width"] // cellSize["width"]
+        table : ClassGridTable = ClassGridTable(rows, cols)
         for entry in jsonObject["data"]:
             row = entry["row"]
             col = entry["col"]
@@ -14,13 +16,13 @@ class ClassGridTableJson:
     @staticmethod
     def toJson(table : ClassGridTable):
         jsonObject = {}
-        jsonObject["rows"] = table.rows
-        jsonObject["cols"] = table.cols
         data = []
         for row in range(table.rows):
             for col in range(table.cols):
-                className = table.getCellClass(row, col)._name
-                data.append({"row": row, "col": col, "class": className})
+
+                _class = table.getCellClass(row, col)
+                if _class != None:
+                    data.append({"row": row, "col": col, "class": _class._name})
         jsonObject["data"] = data
         
         return jsonObject

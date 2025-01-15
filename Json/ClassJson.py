@@ -16,12 +16,12 @@ class ClassJson:
     
     @staticmethod
     def toJson(_class: Class):
-        return { "name" : _class._name, "color": _class._color}
+        return { "name" : _class._name, "color": _class._color.name()}
     
     @staticmethod
     def toJsonArray(classes : dict[str, Class]):
         jsonList :list[dict]= []
-        for entry in classes:
+        for entry in classes.values():
             jsonList.append(ClassJson.toJson(entry))
         return jsonList
     

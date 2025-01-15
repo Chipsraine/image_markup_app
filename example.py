@@ -2,10 +2,10 @@ import sys  # sys нужен для передачи argv в QApplication
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction
 from PyQt5.QtGui import QPixmap
-
+import json
 import forms.form
 from Json.ClassGridJson import ClassGridJson
-from AppSettings import *
+from AppState import *
 
 class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
     
@@ -14,11 +14,11 @@ class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
         # и т.д. в файле design.py
         super().__init__()
         self.setupUi(self)
-        self.appSettings : AppSettings = AppSettings()
-        self.graphicsViewImage.setAppSettings(self.appSettings)
-        self.appSettings.events.onImageSetEvent.connect(self.graphicsViewImage.setImage)
-        self.appSettings.events.beforeGridSetEvent.connect(self.graphicsViewImage.unlinkGrid)
-        self.appSettings.events.afterGridSetEvent.connect(self.graphicsViewImage.linkGrid)
+        self.appState : AppState = AppState()
+        self.graphicsViewImage.setAppSettings(self.appState)
+        self.appState.events.onImageSetEvent.connect(self.graphicsViewImage.setImage)
+        self.appState.events.beforeGridSetEvent.connect(self.graphicsViewImage.unlinkGrid)
+        self.appState.events.afterGridSetEvent.connect(self.graphicsViewImage.linkGrid)
         self.actionImageZoomIn.triggered.connect(self.graphicsViewImage.zoomIn)
         self.actionImageZoomOut.triggered.connect(self.graphicsViewImage.zoomOut)
         self.actionResetImageScale.triggered.connect(self.graphicsViewImage.resetScale)
@@ -26,10 +26,18 @@ class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
         
         
     def test(self):
-        self.appSettings.activeTool = Tool.AREA_TOOL
-        self.appSettings.setActiveImage(QPixmap(r"C:\\Users\\WormixGame\\Downloads\\photo_2024-12-31_18-52-09.jpg"))
-        self.appSettings.setActiveGrid(ClassGridJson.fromJson({"cell_size": {"width": 40, "height": 40}, "grid_size": {"width": 1024, "height": 1024}, "classes": [{"name":"Кот", "color":"#c8f542"}, {"name" : "Силли", "color": "#4833d4"}], "table" : {"rows": 100, "cols": 100, "data": [{"row": 0, "col": 0, "class": "Кот"}, {"row": 2, "col": 2, "class": "Кот"}]}}))
-        self.appSettings.activeClass = self.appSettings.activeGrid.classes["Силли"]
+        self.appState.activeTool = Tool.SELECT_AREA_TOOL
+        image = QPixmap(r"example.jpg")
+        imageSize = {"height": image.size().height(), "width": image.size().width()}
+        self.appState.setActiveImage(image)
+        data = json.load(open(r'example.json', encoding="utf-8"))
+        self.appState.setActiveGrid(ClassGridJson.fromJson(data, imageSize))
+        
+        self.appState.activeClass = self.appState.activeGrid.classes["Силли"]
+        
+    def closeEvent(self, a0):
+        with open('example.json', 'w', encoding='utf-8') as f:
+            json.dump(ClassGridJson.toJson(self.appState.activeGrid), f, indent=4, sort_keys=True, ensure_ascii=False)
         
 def main():
     app = QtWidgets.QApplication(sys.argv)  # Новый экземпляр QApplication
