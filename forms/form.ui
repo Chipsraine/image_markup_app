@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>794</width>
+    <height>449</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::LeftToRight</enum>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="minimumSize">
+    <size>
+     <width>794</width>
+     <height>398</height>
+    </size>
+   </property>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="0" column="1">
+     <widget class="QGroupBox" name="groupBoxClasses">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="title">
+       <string>Классы</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QListView" name="listViewClasses">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QGroupBox" name="groupBoxImage">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>485</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Изображение</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="2" column="1">
+        <widget class="QPushButton" name="pushButtonNextImage">
+         <property name="contextMenuPolicy">
+          <enum>Qt::NoContextMenu</enum>
+         </property>
+         <property name="text">
+          <string>Следующая</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QPushButton" name="pushButtonPreviousImage">
+         <property name="contextMenuPolicy">
+          <enum>Qt::NoContextMenu</enum>
+         </property>
+         <property name="text">
+          <string>Предыдущая</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0" colspan="2">
+        <widget class="ClassGridGraphicsView" name="graphicsViewImage">
+         <property name="contextMenuPolicy">
+          <enum>Qt::DefaultContextMenu</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>794</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>Меню</string>
+    </property>
+    <addaction name="actionSelectImagesFolder"/>
+   </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>Вид</string>
+    </property>
+    <addaction name="actionImageZoomIn"/>
+    <addaction name="actionImageZoomOut"/>
+    <addaction name="actionResetImageScale"/>
+   </widget>
+   <addaction name="menu"/>
+   <addaction name="menu_2"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionSelectImagesFolder">
+   <property name="text">
+    <string>Выбрать папку с изображениями</string>
+   </property>
+  </action>
+  <action name="actionImageZoomIn">
+   <property name="text">
+    <string>Приблизить изображение</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+=</string>
+   </property>
+  </action>
+  <action name="actionImageZoomOut">
+   <property name="text">
+    <string>Отдалить изображение</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
+   </property>
+  </action>
+  <action name="actionAddClass">
+   <property name="text">
+    <string>Добавить класс</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
+  <action name="actionDeleteClass">
+   <property name="text">
+    <string>Удалить класс</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
+  <action name="actionChangeClass">
+   <property name="text">
+    <string>Изменить класс</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
+  <action name="actionFillGrid">
+   <property name="text">
+    <string>Заполнить сетку классом</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::WidgetShortcut</enum>
+   </property>
+  </action>
+  <action name="actionChangeGridSize">
+   <property name="text">
+    <string>Изменить размер сетки</string>
+   </property>
+  </action>
+  <action name="actionResetImageScale">
+   <property name="text">
+    <string>Восстановить размер изображения</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ClassGridGraphicsView</class>
+   <extends>QGraphicsView</extends>
+   <header>forms.implemented_widgets.ClassGridGraphicsView</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

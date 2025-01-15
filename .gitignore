@@ -1,0 +1,5 @@
+# Ignore PyQt __pycache__ directories
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
