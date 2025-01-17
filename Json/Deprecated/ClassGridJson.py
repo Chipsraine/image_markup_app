@@ -1,15 +1,15 @@
 from grid.ClassGrid import ClassGrid
 from Json.ClassGridTableJson import ClassGridTableJson
 from Json.ClassJson import ClassJson
+from PyQt5.QtCore import QSize
 
 
 class ClassGridJson:
     @staticmethod
     def fromJson(jsonObject, imageSize): 
         classes = ClassJson.fromJsonArray(jsonObject["classes"])
-        cellSize = jsonObject["cell_size"]
+        cellSize = QSize(jsonObject["cell_size"]["width"], jsonObject["cell_size"]["height"])
         table = ClassGridTableJson.fromJson(jsonObject["table"], classes, cellSize, imageSize)
-
         return ClassGrid(table, classes, cellSize, imageSize)
     
     @staticmethod
