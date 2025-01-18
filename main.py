@@ -1,11 +1,12 @@
 import sys  # sys нужен для передачи argv в QApplication
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtGui import QPixmap, QColor
-import json
+from PyQt5.QtWidgets import QDialog
+from PyQt5.QtGui import QPixmap
 import forms.form
 from ClassGridSerialization import *
 from AppState import *
+from forms.implemented_widgets.ChangeGridSizeDialog import ChangeGridSSizeDialog
+
 
 class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
     
@@ -24,6 +25,7 @@ class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
         self.actionResetImageScale.triggered.connect(self.graphicsViewImage.fitImageInView)
         self.pushButtonPreviousImage.clicked.connect(self.graphicsViewImage.fillEmptyCellsWithClass)
         self.pushButtonNextImage.clicked.connect(self.test2)
+        self.actionEditGridSize.triggered.connect(self.changeGridCellSize)
         
         
     def test(self):
@@ -40,6 +42,13 @@ class ExampleApp(QtWidgets.QMainWindow, forms.form.Ui_MainWindow):
     def test2(self):
         width, height = 40, 40
         self.appState.activeGrid.changeCellSize(QSize(width,height))
+        
+    def changeGridCellSize(self):
+        dialog = ChangeGridSSizeDialog(self.appState.activeGrid.gridSize, None)
+        dialog.show()
+        if dialog.exec_():
+            self.appState.activeGrid.changeCellSize(dialog.gridCellSize)
+        
     
     # def mousePressEvent(self, a0):
     #     self.appState.activeClass.setColor(QColor("#c482e5"))

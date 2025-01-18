@@ -1,6 +1,6 @@
 
 from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem
-from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush, QMouseEvent
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize
 
 import numpy as np
@@ -68,7 +68,11 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def fitImageInView(self):
         self.resetScale(self.contentsRect().width() / self.source_image_item.boundingRect().width(), self.contentsRect().height() / self.source_image_item.boundingRect().height())
 
-    def mousePressOnGrid(self, event):
+    def mousePressOnGrid(self, event:QMouseEvent):
+        if (event.buttons() ^ Qt.MouseButton.LeftButton) != Qt.MouseButton.NoButton:
+            self.mousePressed = False
+            return
+        
         eventPoint = self.getEventPoint(event)      
         self.lastTouchedPoint = eventPoint
         
