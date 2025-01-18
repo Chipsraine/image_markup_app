@@ -1,5 +1,5 @@
-from grid.Class import Class
-from grid.ClassGrid import ClassGrid
+from Core.Grid.Class import Class
+from Core.Grid.ClassGrid import ClassGrid
 from enum import Enum
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QPixmap

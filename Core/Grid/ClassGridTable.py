@@ -1,7 +1,5 @@
-from grid.ResizeStrategy import ResizeStrategy
-from PyQt5.QtCore import QRect
-
-from grid.area.Area import Area
+from Core.Grid.GridResizeStrategy import *
+from Core.Area.Area import Area
 
 class ClassGridTable:
     
@@ -10,8 +8,8 @@ class ClassGridTable:
         self.cols = cols
         self.data = [[None for _ in range(cols)] for _ in range(rows)]
         
-    def setSize(self, resizeStrategy: ResizeStrategy):
-        resizeStrategy.resize(self)
+    def setSize(self, resizeStrategy: GridResizeStrategy):
+        resizeStrategy.applyResize(self)
         
     def isCellInsideGrid(self, row, col):
         return 0 <= row < self.rows and 0 <= col < self.cols 
@@ -29,18 +27,25 @@ class ClassGridTable:
         except IndexError as error:
             raise error
         
+    def getCellClassOrNone(self, row, col):
+        if self.isCellInsideGrid(row, col):
+            return self.data[row][col]
+        else:
+            return None
+        
+        
     def fillEmptyCellsWithClass(self, _class):
         for row in range(self.rows):
             for col in range(self.cols):
                 if self.data[row][col] == None:
-                    self.setClassToCell(row, col, _class)
+                    self.data[row][col] = _class
                     
         
     def removeClassFromTable(self, _class):
         for row in range(self.rows):
             for col in range(self.cols):
                 if self.data[row][col] == _class:
-                    self.setClassToCell(row,col, None)
+                     self.data[row][col] = None
                     
     def switchCellClass(self, row, col, _class):
         cellClass = self.getCellClass(row, col)

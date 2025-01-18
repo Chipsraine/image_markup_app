@@ -1,16 +1,20 @@
 from grid.ClassGridTable import ClassGridTable
+from PyQt5.QtCore import QSize
 
 class ClassGridTableJson:
     @staticmethod
-    def fromJson(jsonObject, classes, cellSize, imageSize):
-        rows = imageSize["height"] // cellSize["height"]
-        cols = imageSize["width"] // cellSize["width"]
+    def fromJson(jsonObject, classes, cellSize :QSize, imageSize :QSize):
+        rows = imageSize.height() // cellSize.height()
+        cols = imageSize.width() // cellSize.width()
         table : ClassGridTable = ClassGridTable(rows, cols)
         for entry in jsonObject["data"]:
             row = entry["row"]
             col = entry["col"]
             cellClass = classes[entry["class"]]
-            table.setClassToCell(row, col, cellClass)
+            try:
+                table.setClassToCell(row, col, cellClass)
+            except IndexError:
+                print(f"Ячейка [{row}, {col}] выходит за пределы сетки")
         return table
     
     @staticmethod

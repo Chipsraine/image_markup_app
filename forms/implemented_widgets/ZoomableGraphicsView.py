@@ -1,6 +1,5 @@
 
-from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QGraphicsView
 
 class ZoomableGraphicsView(QGraphicsView):
     def __init__(self, parent=None):
@@ -8,12 +7,13 @@ class ZoomableGraphicsView(QGraphicsView):
         
     def zoomIn(self):
         self.scale(1.25, 1.25)
-        self.centerOn(self.sceneRect().center())
 
     def zoomOut(self):
         self.scale(0.8, 0.8)
-        self.centerOn(self.sceneRect().center())
 
-    def resetScale(self):
+    def resetScale(self, ratioX, ratioY):
         self.resetTransform()
-        self.centerOn(self.sceneRect().center())
+        ratio = min(ratioX, ratioY)
+        self.scale(ratio, ratio)
+        
+        

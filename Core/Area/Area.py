@@ -1,5 +1,4 @@
-from grid.area.Point import Point
-
+from Core.Area import Point
 
 class Area:
     def __init__(self):

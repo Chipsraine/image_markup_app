@@ -4,9 +4,9 @@ from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize
 
 import numpy as np
-from grid.area.Area import Area
-from grid.area.Point import Point
 from forms.implemented_widgets.ZoomableGraphicsView import ZoomableGraphicsView
+from Core.Area.Area import Area
+from Core.Area.Point import Point
 from AppState import *
 
 
@@ -38,6 +38,10 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.mouseInside = False
         self.mousePressed = False
         self.lastTouchedPoint = None
+        
+        self.borderOpacity = 196
+        self.backgroundOpacity = 128
+        self.brushesLookup : dict[int, dict] = {}
     
     def isGridSet(self):
         return self.appState.activeGrid != None and self.appState.activeImage != None
@@ -56,20 +60,22 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         x = int(event.pos().x())
         y = int(event.pos().y())
         
-        col = x // self.appState.activeGrid.cellSize["width"]
-        row = y // self.appState.activeGrid.cellSize["height"]
+        col = x // self.appState.activeGrid.cellSize.width()
+        row = y // self.appState.activeGrid.cellSize.height()
         
         return Point(row, col)
         
+    def fitImageInView(self):
+        self.resetScale(self.contentsRect().width() / self.source_image_item.boundingRect().width(), self.contentsRect().height() / self.source_image_item.boundingRect().height())
 
     def mousePressOnGrid(self, event):
-        
         eventPoint = self.getEventPoint(event)      
         self.lastTouchedPoint = eventPoint
         
         if self.isInteractable() and self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
-            self.selectArea.setFirstPoint(eventPoint)
-            self.selectArea.setSecondPoint(eventPoint)
+            if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
+                self.selectArea.setFirstPoint(eventPoint)
+                self.selectArea.setSecondPoint(eventPoint)
             self.manageMouseTool(eventPoint)
             
         self.mousePressed = True
@@ -92,7 +98,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         if self.lastTouchedPoint == eventPoint or not self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
             return
         
-        self.selectArea.setSecondPoint(eventPoint)
+        if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
+            self.selectArea.setSecondPoint(eventPoint)
         self.manageMouseTool(eventPoint)
         self.lastTouchedPoint = eventPoint
         
@@ -121,13 +128,14 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         cellClass = self.appState.activeGrid.getCellClass(row, col)
         
-        
         self.eraseCell(painter, row, col)
         
         if cellClass != None:
            self.paintCell(painter, row, col, cellClass._color)
         
+        
         painter.end()
+        
         
         self.mask_image_item.setPixmap(self.mask_image)
         
@@ -135,6 +143,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.sourceHeight = self.appState.activeImage.size().height()
         self.sourceWidth = self.appState.activeImage.size().width()
         self.source_image_item.setPixmap(self.appState.activeImage)
+
+
 
     def unlinkGrid(self):
         self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
@@ -155,39 +165,51 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.mask_image = self.createBlankImage()
         self.mask_image_item.setPixmap(self.mask_image)
         
-    def paintCell(self, painter : QPainter, row, col, color:QColor):
+        
+    def getTransparentColor(self, color, alpha):
         transparent_color = QColor(color)
-        transparent_color.setAlpha(128)            
-        pen = QPen(color, 1)
+        transparent_color.setAlpha(alpha)
+        return transparent_color
         
-        brush = QBrush(transparent_color)
-                    
-        painter.setPen(pen)
-        painter.setBrush(brush)
-                    
-        width = self.appState.activeGrid.cellSize["width"]
-        height = self.appState.activeGrid.cellSize["height"]
-                                        
-        rect = QRect(col * width, row * height, width, height)
-        painter.drawRect(rect)
+    def getColorBrushes(self, color:QColor):
+        brushes = self.brushesLookup.get(color.value(), None)
+        if brushes is None:
+            brushes = {"border": QBrush(self.getTransparentColor(color, self.borderOpacity)), "background" : QBrush(self.getTransparentColor(color, self.backgroundOpacity))}
+            self.brushesLookup[color.value()] = brushes
+        return brushes
         
+        
+    def paintCell(self, painter : QPainter, row, col, color:QColor):
+        painter.setPen(Qt.PenStyle.NoPen)
+        width = self.appState.activeGrid.cellSize.width()
+        height = self.appState.activeGrid.cellSize.height()
+        borderOffset = self.appState.activeGrid.borderOffset
+        borderTotalWidth = self.appState.activeGrid.borderWidth
+        
+        topLeftX = col * width
+        topLeftY = row * height
+        
+        brushes = self.getColorBrushes(color)
+        
+        painter.setBrush(brushes["border"])
+        painter.drawRect(topLeftX, topLeftY, width, height)
+        if width != 1 and height != 1:
+            mode = painter.compositionMode()
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
+            painter.setBrush(brushes["background"])
+            painter.drawRect(topLeftX + borderOffset, topLeftY + borderOffset, width - borderTotalWidth, height - borderTotalWidth)
+            painter.setCompositionMode(mode)     
 
-    def eraseCell(self, painter :QPainter, row, col):
-        color = QColor(0,0,0,0)
-        pen = QPen(color, 1)
-        brush = QBrush(color)
-                    
-        painter.setPen(pen)
-        painter.setBrush(brush)
-                    
-        width = self.appState.activeGrid.cellSize["width"]
-        height = self.appState.activeGrid.cellSize["height"]
-                                        
-        rect = QRect(col * width, row * height, width, height)
+    def eraseCell(self, painter : QPainter, row, col):
+        painter.setPen(Qt.PenStyle.NoPen)
+        width = self.appState.activeGrid.cellSize.width()
+        height = self.appState.activeGrid.cellSize.height()
+        
         
         mode = painter.compositionMode()
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.drawRect(rect)
+        painter.setBrush(QBrush(QColor(0,0,0,0)))
+        painter.drawRect(QRect(col * width, row * height, width, height))
         painter.setCompositionMode(mode)
             
     def updateAllCellsHandler(self):
@@ -220,18 +242,16 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.begin(self.tool_image)
         
         if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
-            cellWidth, cellHeight = self.appState.activeGrid.cellSize["width"], self.appState.activeGrid.cellSize["height"]
+            cellWidth, cellHeight = self.appState.activeGrid.cellSize.width(), self.appState.activeGrid.cellSize.height()
             x, y = self.selectArea.firstPoint.col * cellWidth, self.selectArea.firstPoint.row * cellHeight
             offsetCol = 1 if self.selectArea.secondPoint.col >= self.selectArea.firstPoint.col else 0
             offsetRow = 1 if self.selectArea.secondPoint.row >= self.selectArea.firstPoint.row else 0
             areaWidth = (self.selectArea.secondPoint.col - self.selectArea.firstPoint.col + offsetCol) * cellWidth
-            areaHeight = (self.selectArea.secondPoint.row - self.selectArea.firstPoint.row + offsetRow) * cellWidth
+            areaHeight = (self.selectArea.secondPoint.row - self.selectArea.firstPoint.row + offsetRow) * cellHeight
 
             paintingRect = QRect(x, y, areaWidth, areaHeight)
-            pen = QPen(Qt.GlobalColor.red, 2)
-            painter.setPen(pen)
+            painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.MiterJoin))
             painter.setBackground(QColor(0, 0, 0, 0))
-            
             painter.drawRect(paintingRect)
             
         painter.end()
@@ -243,3 +263,9 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
             self.appState.activeGrid.setClassToArea(self.selectArea, self.appState.activeClass)
+    
+    def fillEmptyCellsWithClass(self):
+        if not self.isGridSet():
+            return
+        
+        self.appState.activeGrid.fillEmptyCellsWithClass(self.appState.activeClass)
