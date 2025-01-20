@@ -5,7 +5,7 @@ from io import TextIOWrapper
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import QSize
 
-class ClassGridSerializer:
+class ClassGridDeserializer:
     @staticmethod
     def fromTxt(file :TextIOWrapper, imageSize :QSize):        
         cellSize = QSize(*map(int, file.readline().split()))
@@ -29,7 +29,7 @@ class ClassGridSerializer:
     
 
 
-class ClassGridDeserializer:
+class ClassGridSerializer:
     @staticmethod
     def toTxt(file : TextIOWrapper, grid: ClassGrid):
         file.write(f"{grid.cellSize.width()} {grid.cellSize.height()}\n")

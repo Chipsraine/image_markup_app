@@ -147,8 +147,13 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.sourceHeight = self.appState.activeImage.size().height()
         self.sourceWidth = self.appState.activeImage.size().width()
         self.source_image_item.setPixmap(self.appState.activeImage)
+        self.scene().setSceneRect(self.source_image_item.boundingRect())
+        self.fitImageInView()
 
+       
 
+    def resizeEvent(self, event):
+        self.fitImageInView()
 
     def unlinkGrid(self):
         self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
@@ -168,6 +173,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def resetMask(self):
         self.mask_image = self.createBlankImage()
         self.mask_image_item.setPixmap(self.mask_image)
+
         
         
     def getTransparentColor(self, color, alpha):

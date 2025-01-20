@@ -43,8 +43,17 @@ class ClassGrid:
     def setResizeStrategy(self, strategy : Type[GridResizeStrategy]):
         self.resizeStrategy = strategy
         
+    def applyResizeStrategy(self, newCellSize):
+        self.resizeStrategy.applyResize(self, newCellSize)
+    
+    def hasSameCellSize(self, cellSize):
+        return cellSize.width() == self.cellSize.width() and cellSize.height() == self.cellSize.height()
+        
+    def canCellSizeFitInGrid(self, cellSize):
+        return cellSize.width() <= self.cellSize.width() and cellSize.height() <= self.cellSize.height()
+        
     def changeCellSize(self, newCellsize):
-        self.resizeStrategy.applyResize(self, newCellsize)
+        self.applyResizeStrategy(self, newCellsize)
         self.updateBorderInfo()
         self.signals_emitter.updateAllCells.emit()
         
@@ -57,23 +66,13 @@ class ClassGrid:
         if not self.table.isCellInsideGrid(row, col):
             return None
         
-        return QPoint(self.cellSize.width() * col, self.cellSize.height() * row)
+        return self.cellSize.width() * col, self.cellSize.height() * row
     
     def getCellRect(self, row :int, col:int):
         topLeft = self.getCellCoordinates(row, col)
         if topLeft is None:
             return None
         return QRect(topLeft, QPoint(topLeft.x() + self.cellSize.width() - 1, topLeft.y() + self.cellSize.height() - 1))
-    
-    def getReducedCellRect(self, row: int, col: int, reduction: int):
-        topLeft = self.getCellCoordinates(row, col)
-        if topLeft is None:
-            return None
-     
-        reducedTopLeft = QPoint(topLeft.x() + reduction, topLeft.y() + reduction)
-        reducedBottomRight = QPoint(topLeft.x() + self.cellSize.width() - 1 - reduction, topLeft.y() + self.cellSize.height() - 1 - reduction)
-        
-        return QRect(reducedTopLeft, reducedBottomRight)
     
     def setClasses(self, classes: list[Class]):
         for _class in self.classes:

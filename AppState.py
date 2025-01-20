@@ -3,6 +3,7 @@ from Core.Grid.ClassGrid import ClassGrid
 from enum import Enum
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QPixmap
+from Core.Folder import Folder
 
 class Tool(Enum):
     NO_TOOL = 1
@@ -30,6 +31,7 @@ class AppState:
         self.activeTool : Tool = Tool.NO_TOOL
         self.activeGrid : ClassGrid = None
         self.activeImage : QPixmap = None
+        self.activeFolder : Folder = None
         
     def setActiveGrid(self, grid : ClassGrid):
         if self.activeGrid != None:
@@ -43,6 +45,5 @@ class AppState:
         self.events.onImageSetEvent.emit()
         
     def setActiveImageAndGrid(self, image : QPixmap, grid : ClassGrid):
-        self.activeImage = image
-        self.events.onImageSetEvent.emit()
+        self.setActiveImage(image)
         self.setActiveGrid(grid)
