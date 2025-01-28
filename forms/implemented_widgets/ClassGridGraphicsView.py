@@ -1,6 +1,6 @@
 
 from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem
-from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QBrush, QMouseEvent
 from PyQt5.QtCore import Qt, QRect, QPoint, QSize
 
 import numpy as np
@@ -68,7 +68,11 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def fitImageInView(self):
         self.resetScale(self.contentsRect().width() / self.source_image_item.boundingRect().width(), self.contentsRect().height() / self.source_image_item.boundingRect().height())
 
-    def mousePressOnGrid(self, event):
+    def mousePressOnGrid(self, event:QMouseEvent):
+        if (event.buttons() ^ Qt.MouseButton.LeftButton) != Qt.MouseButton.NoButton:
+            self.mousePressed = False
+            return
+        
         eventPoint = self.getEventPoint(event)      
         self.lastTouchedPoint = eventPoint
         
@@ -143,8 +147,13 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.sourceHeight = self.appState.activeImage.size().height()
         self.sourceWidth = self.appState.activeImage.size().width()
         self.source_image_item.setPixmap(self.appState.activeImage)
+        self.scene().setSceneRect(self.source_image_item.boundingRect())
+        self.fitImageInView()
 
+       
 
+    def resizeEvent(self, event):
+        self.fitImageInView()
 
     def unlinkGrid(self):
         self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
@@ -164,6 +173,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
     def resetMask(self):
         self.mask_image = self.createBlankImage()
         self.mask_image_item.setPixmap(self.mask_image)
+
         
         
     def getTransparentColor(self, color, alpha):

@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QObject, pyqtSignal
-from Logic.Grid.Class import Class
+from Core.Grid.Class import Class
 
 class ClassList(QObject):
     classAdded = pyqtSignal(Class)
