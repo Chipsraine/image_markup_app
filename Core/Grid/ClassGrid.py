@@ -1,7 +1,7 @@
 from Core.Grid.Class import Class
 from Core.Grid.ClassGridTable import ClassGridTable
 from Core.Grid.GridResizeStrategy import *
-from PyQt5.QtCore import pyqtSignal, QObject, QSize, QRect, QPoint
+from PyQt5.QtCore import pyqtSignal, QObject, QSize, QRect, QPoint, Qt
 from typing import Type
 
 from Core.Area.Area import Area
@@ -22,12 +22,21 @@ class ClassGrid:
 
     def __init__(self, table, classes, cellSize, gridSize):
         self.init()
-        self.table = table
-        self.classes = classes
+        if (table != None):
+            self.table = table
+        else:
+            self.table = ClassGridTable(int(gridSize.height() // cellSize.height()), int(gridSize.width() // cellSize.width()))
+        
+        if (classes != None):
+            self.classes = classes
+        else:
+            self.classes = [Class.default()]
+        
         self.cellSize = cellSize
         self.gridSize = gridSize
         self.updateBorderInfo()
         self.resizeStrategy = PixByPixResizeStrategy
+        
         
     def updateBorderInfo(self):
         lesserSide = min(self.cellSize.width(), self.cellSize.height())
@@ -50,10 +59,10 @@ class ClassGrid:
         return cellSize.width() == self.cellSize.width() and cellSize.height() == self.cellSize.height()
         
     def canCellSizeFitInGrid(self, cellSize):
-        return cellSize.width() <= self.cellSize.width() and cellSize.height() <= self.cellSize.height()
+        return cellSize.width() <= self.gridSize.width() and cellSize.height() <= self.gridSize.height()
         
     def changeCellSize(self, newCellsize):
-        self.applyResizeStrategy(self, newCellsize)
+        self.applyResizeStrategy(newCellsize)
         self.updateBorderInfo()
         self.signals_emitter.updateAllCells.emit()
         
@@ -81,7 +90,7 @@ class ClassGrid:
                 classIndex = classes.index(_class)
                 self.table.removeClassFromTable(classes[classIndex])
             except ValueError:
-                pass                
+                pass             
         self.classes = classes
         self.signals_emitter.updateAllCells.emit()
                 
@@ -90,22 +99,20 @@ class ClassGrid:
         return self.table.getCellClass(row, col)
         
     def setClassToCell(self, row, col, _class):
-
-        self.table.setClassToCell(row, col, _class)
+        self.table.setClassToCell(row, col, _class)   
         self.signals_emitter.updateCell.emit(row, col)
         
     def removeClassFromCell(self, row, col):
-        self.table.setClassToCell(row, col, None)
-        
+        self.table.setClassToCell(row, col, None)    
         self.signals_emitter.updateCell.emit(row, col)
         
     def removeClassFromGrid(self, _class):
         self.classes.pop(_class._name)
-        self.table.removeClassFromTable(_class)
+        self.table.removeClassFromTable(_class)   
         self.signals_emitter.updateAllCells.emit()
     
     def changeClassColor(self, className, color):
-        self.classes[className]._color = color
+        self.classes[className]._color = color     
         self.signals_emitter.updateAllCells.emit()
           
     def changeClassName(self, prevName, newName):

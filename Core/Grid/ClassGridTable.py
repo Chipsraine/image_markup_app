@@ -58,10 +58,8 @@ class ClassGridTable:
         startCol = min(area.firstPoint.col, area.secondPoint.col)
         startRow = min(area.firstPoint.row, area.secondPoint.row)
         
-        offsetCol = 1 if area.secondPoint.col >= area.firstPoint.col else 0
-        offsetRow = 1 if area.secondPoint.row >= area.firstPoint.row else 0
-        endCol = max(area.firstPoint.col, area.secondPoint.col) + offsetCol
-        endRow = max(area.firstPoint.row, area.secondPoint.row) + offsetRow
+        endCol = max(area.firstPoint.col, area.secondPoint.col) + 1
+        endRow = max(area.firstPoint.row, area.secondPoint.row) + 1
         
         for row in range(startRow, endRow, 1):
              for col in range(startCol, endCol, 1):
