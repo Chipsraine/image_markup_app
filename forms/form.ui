@@ -124,6 +124,7 @@
      <string>Сетка</string>
     </property>
     <addaction name="actionEditGridSize"/>
+    <addaction name="actionCreateGrid"/>
    </widget>
    <addaction name="menu"/>
    <addaction name="menu_2"/>
@@ -194,6 +195,11 @@
   <action name="actionEditGridSize">
    <property name="text">
     <string>Изменить размер сетки</string>
+   </property>
+  </action>
+  <action name="actionCreateGrid">
+   <property name="text">
+    <string>Создать сетку</string>
    </property>
   </action>
  </widget>

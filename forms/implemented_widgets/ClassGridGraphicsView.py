@@ -69,6 +69,9 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.resetScale(self.contentsRect().width() / self.source_image_item.boundingRect().width(), self.contentsRect().height() / self.source_image_item.boundingRect().height())
 
     def mousePressOnGrid(self, event:QMouseEvent):
+        if not self.isGridSet():
+            return
+        
         if (event.buttons() ^ Qt.MouseButton.LeftButton) != Qt.MouseButton.NoButton:
             self.mousePressed = False
             return
@@ -76,7 +79,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         eventPoint = self.getEventPoint(event)      
         self.lastTouchedPoint = eventPoint
         
-        if self.isInteractable() and self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
+        if self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
             if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
                 self.selectArea.setFirstPoint(eventPoint)
                 self.selectArea.setSecondPoint(eventPoint)
@@ -156,10 +159,18 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.fitImageInView()
 
     def unlinkGrid(self):
+        self.resetMask()
+        self.resetToolLayer()
+        if (self.appState.activeGrid == None):
+            return
+        
         self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
         self.appState.activeGrid.signals_emitter.updateAllCells.disconnect(self.updateAllCellsHandler)
         
     def linkGrid(self):
+        if (self.appState.activeGrid == None):
+            return
+        
         self.appState.activeGrid.signals_emitter.updateCell.connect(self.updateCellHandler)
         self.appState.activeGrid.signals_emitter.updateAllCells.connect(self.updateAllCellsHandler)
         self.updateAllCellsHandler()
@@ -253,13 +264,12 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         
         if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
             cellWidth, cellHeight = self.appState.activeGrid.cellSize.width(), self.appState.activeGrid.cellSize.height()
-            x, y = self.selectArea.firstPoint.col * cellWidth, self.selectArea.firstPoint.row * cellHeight
-            offsetCol = 1 if self.selectArea.secondPoint.col >= self.selectArea.firstPoint.col else 0
-            offsetRow = 1 if self.selectArea.secondPoint.row >= self.selectArea.firstPoint.row else 0
-            areaWidth = (self.selectArea.secondPoint.col - self.selectArea.firstPoint.col + offsetCol) * cellWidth
-            areaHeight = (self.selectArea.secondPoint.row - self.selectArea.firstPoint.row + offsetRow) * cellHeight
+            x1, y1 = min(self.selectArea.firstPoint.col, self.selectArea.secondPoint.col) * cellWidth, min(self.selectArea.firstPoint.row, self.selectArea.secondPoint.row) * cellHeight
+            x2, y2 = max(self.selectArea.firstPoint.col, self.selectArea.secondPoint.col) * cellWidth,  max(self.selectArea.firstPoint.row, self.selectArea.secondPoint.row) * cellHeight
+            areaWidth = (x2 - x1) + cellWidth
+            areaHeight = (y2 - y1) + cellHeight
 
-            paintingRect = QRect(x, y, areaWidth, areaHeight)
+            paintingRect = QRect(x1, y1, areaWidth, areaHeight)
             painter.setPen(QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.MiterJoin))
             painter.setBackground(QColor(0, 0, 0, 0))
             painter.drawRect(paintingRect)
@@ -279,3 +289,10 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             return
         
         self.appState.activeGrid.fillEmptyCellsWithClass(self.appState.activeClass)
+        
+    def resetToolLayer(self):
+        self.selectArea.setFirstPoint(None)
+        self.selectArea.setSecondPoint(None)
+        self.lastTouchedPoint = None
+        self.tool_image = self.createBlankImage()
+        self.tool_image_item.setPixmap(self.tool_image)

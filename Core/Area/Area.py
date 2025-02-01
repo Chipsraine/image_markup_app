@@ -11,10 +11,3 @@ class Area:
     
     def setSecondPoint(self, point : Point):
         self.secondPoint = point
-        # startRow = min(point.row, self.firstPoint.row)
-        # endRow = max(point.row, self.firstPoint.row)
-        # startCol = min(point.col, self.firstPoint.col)
-        # endCol = max(point.col, self.firstPoint.col)
-        
-        # self.firstPoint = Point(startRow, startCol)
-        # self.secondPoint = Point(endRow, endCol)

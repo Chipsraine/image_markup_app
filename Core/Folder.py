@@ -4,17 +4,28 @@ from Core.Grid.ClassGrid import ClassGrid
 from PIL import Image
 from ClassGridSerialization import ClassGridSerializer, ClassGridDeserializer
 import os
+from AppState import *
+
 class Folder (QObject):
-    imageChangeEvent = pyqtSignal(int, QPixmap, ClassGrid)
-    changingProgressEvent = pyqtSignal(int)
+
+    sizeChangeProgressEvent = pyqtSignal(int, int)
+    counterUpdateEvent = pyqtSignal(int, int)
+    
     gridsFolderName = "grids"
-    def __init__(self, folderPath):
+    def __init__(self, folderPath, appState):
         super().__init__(None)
         self.folderPath = folderPath
+        self.appState : AppState = appState
+        self.imageFilenames = None
+        self.activeFileIndex = -1
+        self.totalFilesCount = 0
+        
+        self.loadDirectory()
+        
+    def loadDirectory(self):
         self.imageFilenames = self.getImageFilenames(self.folderPath)
-        self.activeFileIndex = 0
-        self.totalFiles = len(self.imageFilenames)
-
+        self.totalFilesCount = len(self.imageFilenames)           
+            
     
     @staticmethod
     def getImageFilenames(path):
@@ -41,16 +52,20 @@ class Folder (QObject):
         return  os.path.join(self.folderPath, self.gridsFolderName, filename + ".txt")
     
     def getImage(self, filename):
+        
         imagePath = self.getImagePath(filename)
+        if not os.path.exists(imagePath):
+            return None
+        
         return QPixmap(imagePath)
     
-    def getImageGrid(self, filename):
+    def getGrid(self, filename):
         imagePath = self.getImagePath(filename)
         gridPath = self.getGridPath(filename)
         grid = None
         width, height = 0, 0
         
-        if not os.path.exists(imagePath) or not os.path.exists(gridPath):
+        if not self.imageExists(filename) or not os.path.exists(gridPath):
             return None
         
         with Image.open(imagePath) as imageInfo:
@@ -62,11 +77,12 @@ class Folder (QObject):
         return grid
     
     def changeAllGridCellSizes(self, cellSize):
+        print("===Начало изменения размера разметки===")
         for fileIndex, filename in enumerate(self.imageFilenames):
             if (fileIndex == self.activeFileIndex):
                 continue
             
-            grid : ClassGrid = self.getImageGrid(filename)
+            grid : ClassGrid = self.getGrid(filename)
             if grid is None:
                 print(f"Для картинки {filename} нет разметки.")
                 continue
@@ -76,31 +92,103 @@ class Folder (QObject):
                 continue
             
             if grid.hasSameCellSize(cellSize):
-                print(f"Разметки картинки {filename} уже имеет нужную размерность.")
+                print(f"Разметка картинки {filename} уже имеет нужную размерность.")
                 continue
             
+            oldCellSize = grid.cellSize
+            newCellSize = cellSize 
                 
             grid.applyResizeStrategy(cellSize)
-            print(f"Разметка картинки {filename} успешно изменена.")
-            self.changingProgressEvent.emit(fileIndex + 1, self.totalFiles)
+            gridPath = self.getGridPath(filename)
+            with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+                ClassGridSerializer.toTxt(fileWrite, grid)
+            print(f"Разметка картинки {filename} успешно изменена c ({oldCellSize.width()}, {oldCellSize.height()}) на ({newCellSize.width()}, {newCellSize.height()}).")
+            self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+        print("===Конец изменения размера разметки===")
+        
+    def createGrids(self, cellSize):
+        print("===Начало создания сеток===")
+        for fileIndex, filename in enumerate(self.imageFilenames):
+            if (fileIndex == self.activeFileIndex):
+                continue
+            
+            if not self.imageExists(filename) or  not self.getGrid(filename) is None:
+                continue
+            
+            
+            with Image.open(self.getImagePath(filename)) as imageInfo:
+                gridSize = imageInfo.size    
+
+            
+            if  not(cellSize.width() <= gridSize.width() and cellSize.height() <= gridSize.height()):
+                print(f"Заданная размерность клетки не позволяет поместить её в сетку.")
+                continue
+            
+            gridPath = self.getGridPath(filename)
+            with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+                ClassGridSerializer.toTxt(fileWrite, ClassGrid(None, None, cellSize, gridSize))
+            self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+        print("===Конец создания сеток===")
             
     def getActiveFilename(self):
         return self.imageFilenames[self.activeFileIndex]
     
-    def prevImage(self):
-        self.activeFileIndex = (self.totalFiles + self.activeFileIndex - 1) % self.totalFiles
-        self.sendActiveImage()
+    def saveActiveGrid(self):
+        if self.appState.activeGrid == None:
+            return
         
-    def setToFirstImage(self):
-        self.activeFileIndex = 0
-        self.sendActiveImage()
+        gridPath = self.getGridPath(self.getActiveFilename())
+        with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+            ClassGridSerializer.toTxt(fileWrite, self.appState.activeGrid)
         
-    def nextImage(self):
-        self.activeFileIndex = (self.totalFiles + self.activeFileIndex + 1) % self.totalFiles
-        self.sendActiveImage()
-        
-    def sendActiveImage(self):
+    def setActiveImage(self):
         imageFilename = self.getActiveFilename()
-        image = self.getImage(imageFilename)
-        grid = self.getImageGrid(imageFilename)
-        self.imageChangeEvent.emit(self.activeFileIndex + 1, image, grid)
+        self.appState.setActiveImageAndGrid(self.getImage(imageFilename), self.getGrid(imageFilename))
+        self.updateCounter()
+    
+    def imageExists(self, filename):
+        image_path = self.getImagePath(filename)
+        return os.path.exists(image_path)
+
+
+    def switchToPreviousImage(self):
+        if  0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+            self.saveActiveGrid()
+        
+        self.activeFileIndex -= 1
+        
+        while self.activeFileIndex >= 0 and not self.imageExists(self.getActiveFilename()):
+            self.activeFileIndex -= 1
+    
+        if 0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+            self.setActiveImage()
+            return
+        
+        self.loadDirectory()
+        if self.totalFilesCount != 0:
+            self.activeFileIndex = self.totalFilesCount
+            self.switchToPreviousImage()
+        
+
+    def switchToNextImage(self):
+        if  0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+            self.saveActiveGrid()
+        
+        self.activeFileIndex += 1
+        
+        while self.activeFileIndex < self.totalFilesCount and not self.imageExists(self.getActiveFilename()):
+            self.activeFileIndex += 1
+    
+        if 0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+            self.setActiveImage()
+            return
+        
+        self.loadDirectory()
+        if self.totalFilesCount != 0:
+            self.activeFileIndex = -1
+            self.switchToNextImage()        
+        
+    
+
+    def updateCounter(self):
+        self.counterUpdateEvent.emit(self.activeFileIndex + 1, self.totalFilesCount)

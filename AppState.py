@@ -4,6 +4,8 @@ from enum import Enum
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QPixmap
 from Core.Folder import Folder
+from typing import Optional
+
 
 class Tool(Enum):
     NO_TOOL = 1
@@ -21,6 +23,10 @@ class AppEvents(QObject):
     beforeGridSetEvent = pyqtSignal()
     afterGridSetEvent = pyqtSignal()
     onImageSetEvent = pyqtSignal()
+    beforeToolChangeEvent = pyqtSignal()
+    
+    beforeFolderSetEvent = pyqtSignal()
+    afterFolderSetEvent = pyqtSignal()
 
 
     
@@ -37,13 +43,30 @@ class AppState:
         if self.activeGrid != None:
             self.events.beforeGridSetEvent.emit()
         self.activeGrid = grid
-        self.activeClass = None
+        if self.activeGrid != None:
+            self.setActiveClass(self.activeGrid.classes[0])
         self.events.afterGridSetEvent.emit()
         
     def setActiveImage(self, image: QPixmap):
         self.activeImage = image
         self.events.onImageSetEvent.emit()
         
-    def setActiveImageAndGrid(self, image : QPixmap, grid : ClassGrid):
+    def setActiveImageAndGrid(self, image : QPixmap, grid : Optional[ClassGrid]):
         self.setActiveImage(image)
         self.setActiveGrid(grid)
+
+         
+        
+    def setActiveTool(self, tool : Tool):
+        if self.activeTool == Tool.SELECT_AREA_TOOL:
+            self.events.beforeToolChangeEvent.emit()
+        self.activeTool = tool
+        
+    def setActiveClass(self, _class):
+        self.activeClass = _class
+        
+    def setActiveFolder(self, folder):
+        if self.activeFolder != None:
+            self.events.beforeFolderSetEvent.emit()
+        self.activeFolder = folder
+        self.events.afterFolderSetEvent.emit()

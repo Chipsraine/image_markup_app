@@ -4,11 +4,15 @@ from PyQt5.QtCore import pyqtSignal, QObject
 class Class(QObject):
     colorChanged = pyqtSignal(QColor)
     nameChanged = pyqtSignal(str)
-    
+
     def __init__(self, name : str, color : QColor):
         super().__init__(None)
         self._name : str = name
         self._color : QColor = color
+        
+    @staticmethod
+    def default():
+        return Class("Default class", QColor("#999999"))
     
     def color(self):
         return self._color
