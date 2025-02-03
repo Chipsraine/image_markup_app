@@ -12,14 +12,20 @@ class Folder (QObject):
     counterUpdateEvent = pyqtSignal(int, int)
     
     gridsFolderName = "grids"
+
     def __init__(self, folderPath, appState):
         super().__init__(None)
         self.folderPath = folderPath
-        self.appState : AppState = appState
+        self.appState: AppState = appState
         self.imageFilenames = None
         self.activeFileIndex = -1
         self.totalFilesCount = 0
-        
+
+        # Создаем подпапку "grids", если её нет
+        grids_path = os.path.join(self.folderPath, self.gridsFolderName)
+        if not os.path.exists(grids_path):
+            os.makedirs(grids_path)
+
         self.loadDirectory()
         
     def loadDirectory(self):
@@ -112,7 +118,7 @@ class Folder (QObject):
             if (fileIndex == self.activeFileIndex):
                 continue
             
-            if not self.imageExists(filename) or  not self.getGrid(filename) is None:
+            if not self.imageExists(filename) or not self.getGrid(filename) is None:
                 continue
             
             
@@ -140,11 +146,18 @@ class Folder (QObject):
         gridPath = self.getGridPath(self.getActiveFilename())
         with open(gridPath, 'w', encoding='utf-8') as fileWrite:
             ClassGridSerializer.toTxt(fileWrite, self.appState.activeGrid)
-        
+
     def setActiveImage(self):
+        print("Entering Folder.setActiveImage()")
         imageFilename = self.getActiveFilename()
-        self.appState.setActiveImageAndGrid(self.getImage(imageFilename), self.getGrid(imageFilename))
+        print("Active filename:", imageFilename)
+        image = self.getImage(imageFilename)
+        grid = self.getGrid(imageFilename)
+        print("Image loaded:", image, "Grid loaded:", grid)
+        self.appState.setActiveImageAndGrid(image, grid)
+        print("AppState updated with active image and grid.")
         self.updateCounter()
+        print("Exiting Folder.setActiveImage()")
     
     def imageExists(self, filename):
         image_path = self.getImagePath(filename)
@@ -168,25 +181,29 @@ class Folder (QObject):
         if self.totalFilesCount != 0:
             self.activeFileIndex = self.totalFilesCount
             self.switchToPreviousImage()
-        
 
     def switchToNextImage(self):
-        if  0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+        print("Entering Folder.switchToNextImage(), activeFileIndex =", self.activeFileIndex)
+        if 0 <= self.activeFileIndex < self.totalFilesCount:
+            print("Calling saveActiveGrid()")
             self.saveActiveGrid()
-        
         self.activeFileIndex += 1
-        
+        print("Incremented activeFileIndex to", self.activeFileIndex)
         while self.activeFileIndex < self.totalFilesCount and not self.imageExists(self.getActiveFilename()):
+            print("Image does not exist for index", self.activeFileIndex)
             self.activeFileIndex += 1
-    
-        if 0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+        if 0 <= self.activeFileIndex < self.totalFilesCount:
+            print("Calling setActiveImage() with index", self.activeFileIndex)
             self.setActiveImage()
+            print("Active image set.")
             return
-        
+        print("Reloading directory and resetting activeFileIndex")
         self.loadDirectory()
         if self.totalFilesCount != 0:
             self.activeFileIndex = -1
-            self.switchToNextImage()        
+            print("Recursively calling switchToNextImage() after reload.")
+            self.switchToNextImage()
+        print("Exiting Folder.switchToNextImage()")
         
     
 

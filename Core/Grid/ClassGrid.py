@@ -1,7 +1,6 @@
-from Core.Grid.Class import Class
 from Core.Grid.ClassGridTable import ClassGridTable
 from Core.Grid.GridResizeStrategy import *
-from PyQt5.QtCore import pyqtSignal, QObject, QSize, QRect, QPoint, Qt
+from PyQt5.QtCore import pyqtSignal, QObject, QSize, QRect, QPoint
 from typing import Type
 
 from Core.Area.Area import Area

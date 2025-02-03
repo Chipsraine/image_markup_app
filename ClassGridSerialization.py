@@ -26,8 +26,6 @@ class ClassGridDeserializer:
 
         return ClassGrid(table, classes, cellSize, imageSize)
     
-    
-
 
 class ClassGridSerializer:
     @staticmethod
