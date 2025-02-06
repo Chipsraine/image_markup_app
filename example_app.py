@@ -1,4 +1,3 @@
-# example_app.py
 from PyQt5 import QtWidgets, QtCore, QtGui
 from AppState import AppState, Tool
 from forms.form import Ui_MainWindow
@@ -7,7 +6,6 @@ from forms.implemented_widgets.CreateGridDialog import CreateGridDialog
 from Core.Folder import Folder
 from Core.Grid.ClassGrid import ClassGrid
 from Core.Grid.Class import Class
-
 
 class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
@@ -28,7 +26,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Инициализируем состояние приложения
         self.appState = AppState()
-        self.appState.setActiveTool(Tool.ASSIGN_TOOL)
+        self.appState.setActiveTool(Tool.NO_TOOL)
         self.graphicsViewImage.setAppSettings(self.appState)
 
         # Подключаем события AppState к методам графического виджета
@@ -38,7 +36,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.appState.events.beforeFolderSetEvent.connect(self.unlinkFolder)
         self.appState.events.afterFolderSetEvent.connect(self.linkFolder)
         self.appState.events.beforeToolChangeEvent.connect(self.graphicsViewImage.resetToolLayer)
-        # При каждом обновлении сетки (например, после переключения изображения) обновляем список классов
+        # При каждом обновлении сетки обновляем список классов
         self.appState.events.afterGridSetEvent.connect(self.updateClassList)
 
         # Подключаем действия меню
@@ -64,7 +62,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.classListWidget.itemDoubleClicked.connect(self.onClassDoubleClicked)
         self.classListWidget.itemChanged.connect(self.onClassItemChanged)
 
-        # Добавляем кнопки "Добавить класс" и "Удалить класс"
+        # Добавляем кнопки "Добавить класс" и "Удалить класс" под списком классов
         self.addClassButton = QtWidgets.QPushButton("Добавить класс", self.groupBoxClasses)
         self.deleteClassButton = QtWidgets.QPushButton("Удалить класс", self.groupBoxClasses)
         btnLayout = QtWidgets.QHBoxLayout()
@@ -74,7 +72,14 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.addClassButton.clicked.connect(self.addClass)
         self.deleteClassButton.clicked.connect(self.deleteClass)
 
-        # При запуске сразу открываем диалог выбора папки с изображениями
+        # --- Добавляем счётчик изображений под областью изображения ---
+        self.imageCounterLabel = QtWidgets.QLabel(self.groupBoxImage)
+        self.imageCounterLabel.setAlignment(QtCore.Qt.AlignCenter)
+        # Добавляем счетчик в gridLayout группы изображений в новую строку (например, row=3, colspan=2)
+        self.gridLayout.addWidget(self.imageCounterLabel, 3, 0, 1, 2)
+        self.imageCounterLabel.setText("0/0")  # начальное значение
+
+        # При запуске открываем диалог выбора папки с изображениями
         self.selectImagesFolder()
 
     def selectImagesFolder(self):
@@ -82,6 +87,8 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         if folder_path:
             folder = Folder(folder_path, self.appState)
             self.appState.setActiveFolder(folder)
+            # Подключаем сигнал обновления счётчика
+            folder.counterUpdateEvent.connect(self.updateImageCounter)
             folder.switchToNextImage()  # Загружается первое изображение и сетка
             if self.appState.activeGrid and self.appState.activeGrid.classes:
                 self.appState.setActiveClass(self.appState.activeGrid.classes[0])
@@ -89,6 +96,9 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             QtWidgets.QMessageBox.warning(self, "Ошибка", "Папка не выбрана!")
             QtWidgets.QApplication.quit()
+
+    def updateImageCounter(self, current, total):
+        self.imageCounterLabel.setText(f"{current}/{total}")
 
     def updateClassList(self):
         """Обновляет список классов в classListWidget согласно appState.activeGrid.classes."""
@@ -100,9 +110,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
                 pixmap = QtGui.QPixmap(20, 20)
                 pixmap.fill(cls.color())
                 item.setIcon(QtGui.QIcon(pixmap))
-                # Разрешаем редактирование имени
-                item.setFlags(
-                    item.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+                item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
                 item.setData(QtCore.Qt.UserRole, cls)
                 self.classListWidget.addItem(item)
         self.classListWidget.blockSignals(False)
@@ -113,7 +121,6 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Active class set to:", cls.name())
 
     def onClassDoubleClicked(self, item):
-        # Изменяем только цвет – не перезагружаем сетку
         cls = item.data(QtCore.Qt.UserRole)
         color = QtWidgets.QColorDialog.getColor(initial=cls.color(), parent=self, title="Выбрать цвет")
         if color.isValid():
@@ -122,7 +129,9 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
             pixmap.fill(color)
             item.setIcon(QtGui.QIcon(pixmap))
             print("Class color updated:", color.name())
-            # Не вызываем saveAndReloadGrid() здесь, чтобы не сбрасывать возможность изменения имени
+            # Обновляем сетку, чтобы изменить уже закрашенные ячейки
+            self.saveAndReloadGrid()
+            self.updateClassList()
 
     def onClassItemChanged(self, item):
         cls = item.data(QtCore.Qt.UserRole)
@@ -132,6 +141,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Class name updated to:", new_name)
             # После изменения имени вызываем сохранение и перезагрузку сетки
             self.saveAndReloadGrid()
+            self.updateClassList()
 
     def addClass(self):
         default_color = QtGui.QColor("red")
@@ -146,6 +156,10 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
         selected_items = self.classListWidget.selectedItems()
         if not selected_items:
             QtWidgets.QMessageBox.warning(self, "Ошибка", "Не выбран класс для удаления")
+            return
+        # Если удаление последнего класса – не разрешаем
+        if len(self.appState.activeGrid.classes) <= 1:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Нельзя удалить последний класс")
             return
         item = selected_items[0]
         cls = item.data(QtCore.Qt.UserRole)
@@ -164,7 +178,6 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.appState.setActiveClass(None)
 
     def saveAndReloadGrid(self):
-        """Сохраняет текущую сетку и перезагружает её из файла, затем обновляет список классов."""
         folder = self.appState.activeFolder
         if folder:
             print("Saving active grid...")
@@ -216,8 +229,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def setTool(self, tool):
         self.appState.setActiveTool(tool)
-        # print("Active tool set to:", tool.name())
-        # Если переключаемся на NO_TOOL, можно принудительно обновить отображение
+        print("Active tool set to:", tool.name())
         if tool == Tool.NO_TOOL:
             self.graphicsViewImage.resetToolLayer()
 
@@ -227,7 +239,7 @@ class ExampleApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
 if __name__ == '__main__':
-    # Для тестирования можно запускать этот файл напрямую
+    # Этот файл можно запускать напрямую для тестирования business-логики
     app = QtWidgets.QApplication([])
     window = ExampleApp()
     window.show()

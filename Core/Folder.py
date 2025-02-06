@@ -1,5 +1,7 @@
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import pyqtSignal,  QSize, QObject
+from PyQt5.uic.properties import QtCore
+
 from Core.Grid.ClassGrid import ClassGrid
 from PIL import Image
 from ClassGridSerialization import ClassGridSerializer, ClassGridDeserializer
@@ -111,31 +113,44 @@ class Folder (QObject):
             print(f"Разметка картинки {filename} успешно изменена c ({oldCellSize.width()}, {oldCellSize.height()}) на ({newCellSize.width()}, {newCellSize.height()}).")
             self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
         print("===Конец изменения размера разметки===")
-        
+
     def createGrids(self, cellSize):
         print("===Начало создания сеток===")
         for fileIndex, filename in enumerate(self.imageFilenames):
-            if (fileIndex == self.activeFileIndex):
+            # Пропускаем активное изображение
+            if fileIndex == self.activeFileIndex:
                 continue
-            
-            if not self.imageExists(filename) or not self.getGrid(filename) is None:
-                continue
-            
-            
-            with Image.open(self.getImagePath(filename)) as imageInfo:
-                gridSize = imageInfo.size    
 
-            
-            if  not(cellSize.width() <= gridSize.width() and cellSize.height() <= gridSize.height()):
-                print(f"Заданная размерность клетки не позволяет поместить её в сетку.")
+            # Если изображение не существует, пропускаем
+            if not self.imageExists(filename):
                 continue
-            
-            gridPath = self.getGridPath(filename)
-            with open(gridPath, 'w', encoding='utf-8') as fileWrite:
-                ClassGridSerializer.toTxt(fileWrite, ClassGrid(None, None, cellSize, gridSize))
-            self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+
+            try:
+                # Открываем изображение, чтобы получить его размеры
+                with Image.open(self.getImagePath(filename)) as imageInfo:
+                    width, height = imageInfo.size
+                    gridSize = QSize(width, height)
+                    print(f"Создаем сетку для {filename} с размером изображения: {width}x{height}")
+
+                # Проверяем, что заданный размер клетки подходит для данного изображения
+                if not (cellSize.width() <= gridSize.width() and cellSize.height() <= gridSize.height()):
+                    print(
+                        f"Заданная размерность клетки {cellSize.width()}x{cellSize.height()} не позволяет поместить её в сетку для {filename} (размер изображения {gridSize.width()}x{gridSize.height()}).")
+                    continue
+
+                # Вычисляем путь для сохранения файла с разметкой
+                gridPath = self.getGridPath(filename)
+                # Если файл существует, можно его перезаписать (или удалить, если это необходимо)
+                with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+                    # Создаем новую сетку и сериализуем её в файл
+                    new_grid = ClassGrid(None, None, cellSize, gridSize)
+                    ClassGridSerializer.toTxt(fileWrite, new_grid)
+                print(f"Разметка картинки {filename} успешно создана.")
+                self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+            except Exception as e:
+                print(f"Ошибка при создании сетки для {filename}: {e}")
         print("===Конец создания сеток===")
-            
+
     def getActiveFilename(self):
         return self.imageFilenames[self.activeFileIndex]
     
