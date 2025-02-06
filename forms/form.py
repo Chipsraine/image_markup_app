@@ -12,8 +12,8 @@ from forms.implemented_widgets.ClassGridGraphicsView import ClassGridGraphicsVie
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(794, 449)
+        MainWindow.setObjectName("Классифицируй свою картинку!")
+        MainWindow.resize(1920, 1000)
         MainWindow.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setMinimumSize(QtCore.QSize(794, 398))
