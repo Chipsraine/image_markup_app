@@ -12,13 +12,22 @@ from AppState import *
 
 
 class ClassGridGraphicsView(ZoomableGraphicsView):
+    """
+    Виджет для отображения изображения с наложенной сеткой разметки.
+    Позволяет взаимодействовать с разметкой: выделять области, изменять классы,
+    рисовать ячейки сетки и изменять их параметры.
+    """
+
     def __init__(self, parent=None):
-        print("ClassGridGraphicsView: __init__()")
+        """
+        Инициализирует графическое представление сетки разметки.
+
+        :param parent: Родительский объект.
+        """
         super().__init__(parent)
-
         self.setScene(QGraphicsScene())
-        print("Scene created.")
 
+        # Создаем графические элементы для изображения, маски и инструментов
         self.source_image_item = QGraphicsPixmapItem()
         self.mask_image_item = QGraphicsPixmapItem()
         self.tool_image_item = QGraphicsPixmapItem()
@@ -30,9 +39,8 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.scene().addItem(self.source_image_item)
         self.scene().addItem(self.mask_image_item)
         self.scene().addItem(self.tool_image_item)
-        print("Pixmap items added to scene.")
 
-        # Переназначаем обработчики событий мыши для source_image_item
+        # Назначаем обработчики событий мыши
         self.source_image_item.mousePressEvent = self.mousePressOnGrid
         self.source_image_item.mouseMoveEvent = self.mouseMoveOnGrid
         self.source_image_item.mouseReleaseEvent = self.mouseReleaseOnGrid
@@ -47,23 +55,50 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.borderOpacity = 196
         self.backgroundOpacity = 128
         self.brushesLookup: dict[str, dict] = {}
-        print("ClassGridGraphicsView: Initialization complete.")
 
     def isGridSet(self):
-        return self.appState.activeGrid != None and self.appState.activeImage != None
+        """
+        Проверяет, установлена ли сетка и изображение.
+
+        :return: True, если сетка и изображение загружены, иначе False.
+        """
+        return self.appState.activeGrid is not None and self.appState.activeImage is not None
+
 
     def isInteractable(self):
-        return self.appState.activeClass != None and self.isGridSet()
+        """
+        Проверяет, можно ли взаимодействовать с разметкой.
 
-    def setAppSettings(self, settings : AppState):
-        print("setAppSettings() called")
+        :return: True, если активен класс разметки и установлена сетка.
+        """
+        return self.appState.activeClass is not None and self.isGridSet()
+
+    def setAppSettings(self, settings: AppState):
+        """
+        Устанавливает настройки приложения.
+
+        :param settings: Экземпляр AppState.
+        """
         self.appState = settings
 
+
     def setAllEmptyCellsToActiveClass(self):
+        """
+        Заполняет все пустые ячейки текущим активным классом разметки.
+        """
         if self.isInteractable():
             self.appState.activeGrid.fillEmptyCellsWithClass(self.appState.activeClass)
 
     def getEventPoint(self, event):
+        """
+        Получает координаты точки в сетке из события мыши.
+
+        :param event: Событие мыши.
+        :return: Объект Point с координатами в сетке или None, если сетка не установлена.
+        """
+        if not self.isGridSet():
+            return None  # Безопасная проверка, если сетка еще не загружена
+
         x = int(event.pos().x())
         y = int(event.pos().y())
 
@@ -73,85 +108,121 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         return Point(row, col)
 
     def fitImageInView(self):
+        """
+        Масштабирует изображение так, чтобы оно полностью вписывалось в область отображения.
+        """
         try:
             rect = self.source_image_item.boundingRect()
-            print("fitImageInView: source_image_item.boundingRect() =", rect)
-            ratioX = self.contentsRect().width() / rect.width() if rect.width() > 0 else 1
-            ratioY = self.contentsRect().height() / rect.height() if rect.height() > 0 else 1
-            self.resetTransform()
-            ratio = min(ratioX, ratioY)
-            self.scale(ratio, ratio)
-            print("fitImageInView: Scale applied with ratio", ratio)
-        except Exception as e:
-            print("Exception in fitImageInView():", e)
+            if rect.width() > 0 and rect.height() > 0:
+                ratioX = self.contentsRect().width() / rect.width()
+                ratioY = self.contentsRect().height() / rect.height()
+                self.resetTransform()
+                self.scale(min(ratioX, ratioY), min(ratioX, ratioY))
+        except Exception:
+            pass  # Игнорируем возможные ошибки, чтобы не прерывать выполнение программы
+
     def mousePressOnGrid(self, event: QMouseEvent):
-        print("mousePressOnGrid() called")
+        """
+        Обрабатывает нажатие кнопки мыши по сетке разметки.
+
+        :param event: Событие нажатия мыши.
+        """
         if not self.isGridSet():
-            print("mousePressOnGrid: Grid not set")
             return
 
-        if (event.buttons() ^ Qt.MouseButton.LeftButton) != Qt.MouseButton.NoButton:
+        # Проверяем, была ли нажата только левая кнопка мыши
+        if event.buttons() != Qt.LeftButton:
             self.mousePressed = False
-            print("mousePressOnGrid: Left button not pressed exclusively")
             return
 
         eventPoint = self.getEventPoint(event)
         self.lastTouchedPoint = eventPoint
 
+        # Проверяем, находится ли точка внутри сетки
         if self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row, eventPoint.col):
             if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
                 self.selectArea.setFirstPoint(eventPoint)
                 self.selectArea.setSecondPoint(eventPoint)
-                print("mousePressOnGrid: Area selection started at", eventPoint.row, eventPoint.col)
             self.manageMouseTool(eventPoint)
+
         self.mousePressed = True
 
     def mouseInWidget(self, event):
+        """
+        Проверяет, находится ли курсор мыши внутри виджета с учетом прокрутки.
+
+        :param event: Событие перемещения мыши.
+        :return: True, если курсор внутри виджета, иначе False.
+        """
         scrollOffsetX = self.verticalScrollBar().width() if self.verticalScrollBar().isVisible() else 0
         scrollOffsetY = self.horizontalScrollBar().height() if self.horizontalScrollBar().isVisible() else 0
-        widgetWidth = self.geometry().size().width() - scrollOffsetX
-        widgetHeight = self.geometry().size().height() - scrollOffsetY
-        allowedAreaRect = QRect(self.mapToGlobal(QPoint(self.geometry().topLeft())), QSize(widgetWidth, widgetHeight))
+
+        widgetWidth = self.geometry().width() - scrollOffsetX
+        widgetHeight = self.geometry().height() - scrollOffsetY
+
+        allowedAreaRect = QRect(self.mapToGlobal(self.geometry().topLeft()), QSize(widgetWidth, widgetHeight))
+
         return allowedAreaRect.contains(self.mapToParent(event.screenPos()))
 
     def mouseMoveOnGrid(self, event):
+        """
+        Обрабатывает перемещение мыши по сетке.
 
-        if self.mousePressed == False or not self.isGridSet() or not self.mouseInWidget(event):
+        :param event: Событие перемещения мыши.
+        """
+        if not self.mousePressed or not self.isGridSet() or not self.mouseInWidget(event):
             return
 
         eventPoint = self.getEventPoint(event)
 
+        # Проверяем, изменилась ли точка или находится ли она внутри сетки
         if self.lastTouchedPoint == eventPoint or not self.appState.activeGrid.table.isCellInsideGrid(eventPoint.row,
                                                                                                       eventPoint.col):
             return
 
         if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
             self.selectArea.setSecondPoint(eventPoint)
+
         self.manageMouseTool(eventPoint)
         self.lastTouchedPoint = eventPoint
 
     def mouseReleaseOnGrid(self, event):
-        # Если выбран режим выделения области, сразу применяем заливку
+        """
+        Обрабатывает отпускание кнопки мыши на сетке.
+
+        :param event: Событие отпускания мыши.
+        """
         if self.appState.activeTool == Tool.SELECT_AREA_TOOL:
             self.fillSelectedArea()
-            # Если требуется, можно также сбросить выбранную область (удалить красную рамку)
-            self.resetToolLayer()
+            self.resetToolLayer()  # Сбрасывает выделенную область после заполнения
+
         self.lastTouchedPoint = None
         self.mousePressed = False
 
     def manageMouseTool(self, point):
+        """
+        Управляет действиями инструментов разметки в зависимости от выбранного режима.
+
+        :param point: Точка, в которой выполняется действие.
+        """
         activeTool = self.appState.activeTool
         activeClass = self.appState.activeClass
         activeGrid = self.appState.activeGrid
 
-        if activeTool == Tool.ASSIGN_TOOL and activeClass != None:
+        if activeTool == Tool.ASSIGN_TOOL and activeClass is not None:
             activeGrid.setClassToCell(point.row, point.col, activeClass)
-        elif activeTool == Tool.DELETE_TOOL and activeGrid.getCellClass(point.row, point.col) != None:
+        elif activeTool == Tool.DELETE_TOOL and activeGrid.getCellClass(point.row, point.col) is not None:
             activeGrid.setClassToCell(point.row, point.col, None)
         elif activeTool == Tool.SELECT_AREA_TOOL:
             self.paintToolArea()
 
     def updateCellHandler(self, row, col):
+        """
+        Обновляет ячейку разметки в графическом интерфейсе.
+
+        :param row: Номер строки ячейки.
+        :param col: Номер колонки ячейки.
+        """
         painter = QPainter()
         painter.begin(self.mask_image)
 
@@ -159,7 +230,7 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
 
         self.eraseCell(painter, row, col)
 
-        if cellClass != None:
+        if cellClass is not None:
             self.paintCell(painter, row, col, cellClass._color)
 
         painter.end()
@@ -167,6 +238,9 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.mask_image_item.setPixmap(self.mask_image)
 
     def setImage(self):
+        """
+        Устанавливает изображение в графическую сцену и масштабирует его.
+        """
         self.sourceHeight = self.appState.activeImage.size().height()
         self.sourceWidth = self.appState.activeImage.size().width()
         self.source_image_item.setPixmap(self.appState.activeImage)
@@ -174,19 +248,31 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.fitImageInView()
 
     def resizeEvent(self, event):
+        """
+        Обрабатывает изменение размера виджета.
+
+        :param event: Событие изменения размера.
+        """
         self.fitImageInView()
 
     def unlinkGrid(self):
+        """
+        Отключает сетку разметки, сбрасывая все связанные элементы.
+        """
         self.resetMask()
         self.resetToolLayer()
-        if (self.appState.activeGrid == None):
+        if self.appState.activeGrid is None:
             return
 
         self.appState.activeGrid.signals_emitter.updateCell.disconnect(self.updateCellHandler)
         self.appState.activeGrid.signals_emitter.updateAllCells.disconnect(self.updateAllCellsHandler)
 
+
     def linkGrid(self):
-        if (self.appState.activeGrid == None):
+        """
+        Подключает сетку разметки, обновляя все связанные элементы.
+        """
+        if self.appState.activeGrid is None:
             return
 
         self.appState.activeGrid.signals_emitter.updateCell.connect(self.updateCellHandler)
@@ -194,57 +280,84 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.updateAllCellsHandler()
 
     def createBlankImage(self):
-        print("Entering createBlankImage()")
+        """
+        Создает пустое изображение (QPixmap) с размерами активного изображения.
+        Используется для маски и инструментов рисования.
+
+        :return: Пустой QPixmap соответствующего размера.
+        """
         try:
-            # Пытаемся получить boundingRect у source_image_item
             rect = self.source_image_item.boundingRect()
-            print("createBlankImage: initial boundingRect =", rect)
+
+            # Если boundingRect пустой, используем размеры активного изображения
             if rect.isEmpty():
-                print("createBlankImage: boundingRect is empty.")
                 if self.appState and self.appState.activeImage:
                     rect = self.appState.activeImage.rect()
-                    print("createBlankImage: using activeImage rect =", rect)
                 else:
-                    rect = QRectF(0, 0, 100, 100)
-                    print("createBlankImage: no activeImage; using default rect (0,0,100,100)")
+                    rect = QRectF(0, 0, 100, 100)  # Значение по умолчанию
+
             img_width = int(rect.width())
             img_height = int(rect.height())
+
+            # Если размеры недопустимы, устанавливаем стандартные 100x100
             if img_width <= 0 or img_height <= 0:
-                print("createBlankImage: width or height <= 0, setting default 100x100")
                 img_width, img_height = 100, 100
-            print("createBlankImage: final dimensions: width =", img_width, "height =", img_height)
-            n_channels = 4
+
+            n_channels = 4  # RGBA-формат
             blank_array = np.zeros((img_height, img_width, n_channels), dtype=np.uint8)
-            print("createBlankImage: numpy array created, shape =", blank_array.shape)
+
             qimg = QImage(blank_array.data, img_width, img_height, 4 * img_width, QImage.Format_RGBA8888)
-            print("createBlankImage: QImage created, size =", qimg.width(), "x", qimg.height())
-            qimg = qimg.copy()
-            print("createBlankImage: QImage copied, size =", qimg.width(), "x", qimg.height())
-            pixmap = QPixmap.fromImage(qimg)
-            print("createBlankImage: QPixmap created, size =", pixmap.width(), "x", pixmap.height())
+            pixmap = QPixmap.fromImage(qimg.copy())  # Создаем копию QImage для безопасности
+
             return pixmap
-        except Exception as e:
-            print("Exception in createBlankImage():", e)
-            raise
+        except Exception:
+            return QPixmap(100, 100)  # Если произошла ошибка, возвращаем пустой 100x100 QPixmap
+
     def resetMask(self):
+        """
+        Сбрасывает маску разметки, создавая новое пустое изображение.
+        """
         self.mask_image = self.createBlankImage()
         self.mask_image_item.setPixmap(self.mask_image)
 
     def getTransparentColor(self, color, alpha):
+        """
+        Создает прозрачную версию заданного цвета.
+
+        :param color: Исходный цвет (QColor).
+        :param alpha: Уровень прозрачности (0-255).
+        :return: Новый QColor с заданной прозрачностью.
+        """
         transparent_color = QColor(color)
         transparent_color.setAlpha(alpha)
         return transparent_color
 
     def getColorBrushes(self, color: QColor):
-        brushes = self.brushesLookup.get(color.name(), None)
-        if brushes is None:
-            brushes = {"border": QBrush(self.getTransparentColor(color, self.borderOpacity)),
-                       "background": QBrush(self.getTransparentColor(color, self.backgroundOpacity))}
-            self.brushesLookup[color.value()] = brushes
-        return brushes
+        """
+        Возвращает кисти для границы и фона ячейки разметки.
+        Если кисти для данного цвета уже существуют, использует кэш.
+
+        :param color: Цвет (QColor).
+        :return: Словарь с кистями для границы и фона.
+        """
+        if color.name() not in self.brushesLookup:
+            self.brushesLookup[color.name()] = {
+                "border": QBrush(self.getTransparentColor(color, self.borderOpacity)),
+                "background": QBrush(self.getTransparentColor(color, self.backgroundOpacity))
+            }
+        return self.brushesLookup[color.name()]
 
     def paintCell(self, painter: QPainter, row, col, color: QColor):
+        """
+        Отрисовывает ячейку разметки с заданным цветом.
+
+        :param painter: Объект QPainter для рисования.
+        :param row: Номер строки ячейки.
+        :param col: Номер колонки ячейки.
+        :param color: Цвет заливки ячейки.
+        """
         painter.setPen(Qt.PenStyle.NoPen)
+
         width = self.appState.activeGrid.cellSize.width()
         height = self.appState.activeGrid.cellSize.height()
         borderOffset = self.appState.activeGrid.borderOffset
@@ -255,9 +368,12 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
 
         brushes = self.getColorBrushes(color)
 
+        # Рисуем границу ячейки
         painter.setBrush(brushes["border"])
         painter.drawRect(topLeftX, topLeftY, width, height)
-        if width != 1 and height != 1:
+
+        # Если ячейка не минимального размера, рисуем фон
+        if width > 1 and height > 1:
             mode = painter.compositionMode()
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationAtop)
             painter.setBrush(brushes["background"])
@@ -266,6 +382,13 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
             painter.setCompositionMode(mode)
 
     def eraseCell(self, painter: QPainter, row, col):
+        """
+        Очищает ячейку разметки, делая ее прозрачной.
+
+        :param painter: Объект QPainter для рисования.
+        :param row: Номер строки ячейки.
+        :param col: Номер колонки ячейки.
+        """
         painter.setPen(Qt.PenStyle.NoPen)
         width = self.appState.activeGrid.cellSize.width()
         height = self.appState.activeGrid.cellSize.height()
@@ -277,11 +400,12 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         painter.setCompositionMode(mode)
 
     def updateAllCellsHandler(self):
-
+        """
+        Обновляет всю сетку разметки в графическом интерфейсе.
+        """
         self.resetMask()
 
         painter = QPainter()
-
         painter.begin(self.mask_image)
 
         activeGrid = self.appState.activeGrid
@@ -289,25 +413,27 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         for row in range(activeGrid.table.rows):
             for col in range(activeGrid.table.cols):
                 cell = activeGrid.getCellClass(row, col)
-                if cell != None:
+                if cell is not None:
                     self.paintCell(painter, row, col, cell._color)
-                    print("!!!!!!!!!!!!!!!!:",cell._color.name())
-        painter.end()
 
+        painter.end()
         self.mask_image_item.setPixmap(self.mask_image)
 
     def paintToolArea(self):
+        """
+        Отрисовывает выделенную область для инструмента выделения.
+        """
         if not self.isGridSet():
             return
 
         painter = QPainter()
-
         self.tool_image = self.createBlankImage()
-
         painter.begin(self.tool_image)
 
-        if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
-            cellWidth, cellHeight = self.appState.activeGrid.cellSize.width(), self.appState.activeGrid.cellSize.height()
+        if self.selectArea.firstPoint and self.selectArea.secondPoint:
+            cellWidth = self.appState.activeGrid.cellSize.width()
+            cellHeight = self.appState.activeGrid.cellSize.height()
+
             x1, y1 = min(self.selectArea.firstPoint.col, self.selectArea.secondPoint.col) * cellWidth, min(
                 self.selectArea.firstPoint.row, self.selectArea.secondPoint.row) * cellHeight
             x2, y2 = max(self.selectArea.firstPoint.col, self.selectArea.secondPoint.col) * cellWidth, max(
@@ -325,13 +451,19 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
         self.tool_image_item.setPixmap(self.tool_image)
 
     def fillSelectedArea(self):
+        """
+        Заполняет выделенную область активным классом разметки.
+        """
         if not self.isGridSet():
             return
 
-        if self.selectArea.firstPoint != None and self.selectArea.secondPoint != None:
+        if self.selectArea.firstPoint and self.selectArea.secondPoint:
             self.appState.activeGrid.setClassToArea(self.selectArea, self.appState.activeClass)
 
     def fillEmptyCellsWithClass(self):
+        """
+        Заполняет все пустые ячейки активным классом разметки.
+        """
         if not self.isGridSet():
             return
 
@@ -339,20 +471,18 @@ class ClassGridGraphicsView(ZoomableGraphicsView):
 
     def resetToolLayer(self):
         """
-        Сбрасывает слой для инструмента (например, для выделенной области).
-        Этот метод вызывается при смене инструмента из режима SELECT_AREA_TOOL.
+        Сбрасывает слой инструмента, очищая выделенные области.
         """
-        # Сброс точек выделения и последней точки
         self.selectArea.setFirstPoint(None)
         self.selectArea.setSecondPoint(None)
         self.lastTouchedPoint = None
-        # Создаем новый пустой pixmap для tool_image
+
         try:
             blank_pixmap = self.createBlankImage()
-        except Exception as e:
-            print("Exception in createBlankImage during resetToolLayer:", e)
-            # Если ошибка, создаем pixmap по умолчанию
+        except Exception:
             blank_pixmap = QtGui.QPixmap(100, 100)
             blank_pixmap.fill(QtCore.Qt.transparent)
+
         self.tool_image = blank_pixmap
         self.tool_image_item.setPixmap(self.tool_image)
+

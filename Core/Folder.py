@@ -1,19 +1,29 @@
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import pyqtSignal,  QSize, QObject
+from PyQt5.QtCore import pyqtSignal, QSize, QObject
 from Core.Grid.ClassGrid import ClassGrid
 from PIL import Image
 from ClassGridSerialization import ClassGridSerializer, ClassGridDeserializer
 import os
 from AppState import *
 
-class Folder (QObject):
+class Folder(QObject):
+    """
+    Класс для управления изображениями и разметками.
+    Позволяет загружать изображения, управлять активным файлом и сохранять разметки.
+    """
 
-    sizeChangeProgressEvent = pyqtSignal(int, int)
-    counterUpdateEvent = pyqtSignal(int, int)
-    
+    sizeChangeProgressEvent = pyqtSignal(int, int)  # Сигнал прогресса изменения размеров сетки
+    counterUpdateEvent = pyqtSignal(int, int)  # Сигнал обновления счетчика изображений
+
     gridsFolderName = "grids"
 
     def __init__(self, folderPath, appState):
+        """
+        Инициализирует объект для работы с папкой изображений.
+
+        :param folderPath: Путь к папке с изображениями.
+        :param appState: Глобальное состояние приложения.
+        """
         super().__init__(None)
         self.folderPath = folderPath
         self.appState: AppState = appState
@@ -21,204 +31,209 @@ class Folder (QObject):
         self.activeFileIndex = -1
         self.totalFilesCount = 0
 
-        # Создаем подпапку "grids", если её нет
+        # Создает подпапку "grids" для хранения разметок, если её нет
         grids_path = os.path.join(self.folderPath, self.gridsFolderName)
         if not os.path.exists(grids_path):
             os.makedirs(grids_path)
 
         self.loadDirectory()
-        
+
     def loadDirectory(self):
+        """
+        Загружает список изображений из папки.
+        """
         self.imageFilenames = self.getImageFilenames(self.folderPath)
-        self.totalFilesCount = len(self.imageFilenames)           
-            
-    
+        self.totalFilesCount = len(self.imageFilenames)
+
     @staticmethod
     def getImageFilenames(path):
+        """
+        Возвращает список имен файлов изображений в папке.
+
+        :param path: Путь к папке.
+        :return: Список имен изображений.
+        """
         image_extensions = ['.jpg', '.png']
-        imageFilenames = []
-        for filename in os.listdir(path):
-            if not os.path.splitext(filename)[1].lower() in image_extensions:
-                continue
-            
-            filepath = os.path.join(path, filename)
-            
-            if not os.path.isfile(filepath):
-                continue
-            
-            imageFilenames.append(filename)
-            
-        return imageFilenames
-    
-    
+        return [filename for filename in os.listdir(path)
+                if os.path.splitext(filename)[1].lower() in image_extensions and os.path.isfile(os.path.join(path, filename))]
+
     def getImagePath(self, filename):
+        """
+        Возвращает полный путь к изображению.
+
+        :param filename: Имя файла.
+        :return: Полный путь к изображению.
+        """
         return os.path.join(self.folderPath, filename)
-        
+
     def getGridPath(self, filename):
-        return  os.path.join(self.folderPath, self.gridsFolderName, filename + ".txt")
-    
+        """
+        Возвращает путь к файлу разметки.
+
+        :param filename: Имя файла изображения.
+        :return: Полный путь к файлу разметки.
+        """
+        return os.path.join(self.folderPath, self.gridsFolderName, filename + ".txt")
+
     def getImage(self, filename):
-        
+        """
+        Загружает изображение в формате QPixmap.
+
+        :param filename: Имя файла изображения.
+        :return: Объект QPixmap или None, если файл отсутствует.
+        """
         imagePath = self.getImagePath(filename)
-        if not os.path.exists(imagePath):
-            return None
-        
-        return QPixmap(imagePath)
-    
+        return QPixmap(imagePath) if os.path.exists(imagePath) else None
+
     def getGrid(self, filename):
+        """
+        Загружает разметку сетки для изображения.
+
+        :param filename: Имя файла изображения.
+        :return: Объект ClassGrid или None, если файла разметки нет.
+        """
         imagePath = self.getImagePath(filename)
         gridPath = self.getGridPath(filename)
-        grid = None
-        width, height = 0, 0
-        
+
         if not self.imageExists(filename) or not os.path.exists(gridPath):
             return None
-        
+
         with Image.open(imagePath) as imageInfo:
-            width, height = imageInfo.size    
-        
+            width, height = imageInfo.size
+
         with open(gridPath, 'r', encoding='utf-8') as fileRead:
-            grid = ClassGridDeserializer.fromTxt(fileRead, QSize(width, height))
-        
-        return grid
-    
-    def changeAllGridCellSizes(self, cellSize):
-        print("===Начало изменения размера разметки===")
-        for fileIndex, filename in enumerate(self.imageFilenames):
-            if (fileIndex == self.activeFileIndex):
-                continue
-            
-            grid : ClassGrid = self.getGrid(filename)
-            if grid is None:
-                print(f"Для картинки {filename} нет разметки.")
-                continue
-            
-            if not grid.canCellSizeFitInGrid(cellSize):
-                print(F"Заданная размерность клетки не позволяет поместить её в сетку.")
-                continue
-            
-            if grid.hasSameCellSize(cellSize):
-                print(f"Разметка картинки {filename} уже имеет нужную размерность.")
-                continue
-            
-            oldCellSize = grid.cellSize
-            newCellSize = cellSize 
-                
-            grid.applyResizeStrategy(cellSize)
-            gridPath = self.getGridPath(filename)
-            with open(gridPath, 'w', encoding='utf-8') as fileWrite:
-                ClassGridSerializer.toTxt(fileWrite, grid)
-            print(f"Разметка картинки {filename} успешно изменена c ({oldCellSize.width()}, {oldCellSize.height()}) на ({newCellSize.width()}, {newCellSize.height()}).")
-            self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
-        print("===Конец изменения размера разметки===")
+            return ClassGridDeserializer.fromTxt(fileRead, QSize(width, height))
 
-    def createGrids(self, cellSize):
-        print("===Начало создания сеток===")
-        for fileIndex, filename in enumerate(self.imageFilenames):
-            # Пропускаем активное изображение
-            if fileIndex == self.activeFileIndex:
-                continue
+    def imageExists(self, filename):
+        """
+        Проверяет, существует ли изображение.
 
-            # Если изображение не существует, пропускаем
-            if not self.imageExists(filename):
-                continue
-
-            try:
-                # Открываем изображение, чтобы получить его размеры
-                with Image.open(self.getImagePath(filename)) as imageInfo:
-                    width, height = imageInfo.size
-                    gridSize = QSize(width, height)
-                    print(f"Создаем сетку для {filename} с размером изображения: {width}x{height}")
-
-                # Проверяем, что заданный размер клетки подходит для данного изображения
-                if not (cellSize.width() <= gridSize.width() and cellSize.height() <= gridSize.height()):
-                    print(
-                        f"Заданная размерность клетки {cellSize.width()}x{cellSize.height()} не позволяет поместить её в сетку для {filename} (размер изображения {gridSize.width()}x{gridSize.height()}).")
-                    continue
-
-                # Вычисляем путь для сохранения файла с разметкой
-                gridPath = self.getGridPath(filename)
-                # Если файл существует, можно его перезаписать (или удалить, если это необходимо)
-                with open(gridPath, 'w', encoding='utf-8') as fileWrite:
-                    # Создаем новую сетку и сериализуем её в файл
-                    new_grid = ClassGrid(None, None, cellSize, gridSize)
-                    ClassGridSerializer.toTxt(fileWrite, new_grid)
-                print(f"Разметка картинки {filename} успешно создана.")
-                self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
-            except Exception as e:
-                print(f"Ошибка при создании сетки для {filename}: {e}")
-        print("===Конец создания сеток===")
+        :param filename: Имя файла.
+        :return: True, если изображение существует, иначе False.
+        """
+        return os.path.exists(self.getImagePath(filename))
 
     def getActiveFilename(self):
+        """
+        Возвращает имя активного файла изображения.
+
+        :return: Имя активного файла.
+        """
         return self.imageFilenames[self.activeFileIndex]
-    
+
     def saveActiveGrid(self):
-        if self.appState.activeGrid == None:
+        """
+        Сохраняет активную разметку в файл.
+        """
+        if self.appState.activeGrid is None:
             return
-        
+
         gridPath = self.getGridPath(self.getActiveFilename())
         with open(gridPath, 'w', encoding='utf-8') as fileWrite:
             ClassGridSerializer.toTxt(fileWrite, self.appState.activeGrid)
 
-    def setActiveImage(self):
-        print("Entering Folder.setActiveImage()")
-        imageFilename = self.getActiveFilename()
-        print("Active filename:", imageFilename)
-        image = self.getImage(imageFilename)
-        grid = self.getGrid(imageFilename)
-        print("Image loaded:", image, "Grid loaded:", grid)
-        self.appState.setActiveImageAndGrid(image, grid)
-        print("AppState updated with active image and grid.")
-        self.updateCounter()
-        print("Exiting Folder.setActiveImage()")
-    
-    def imageExists(self, filename):
-        image_path = self.getImagePath(filename)
-        return os.path.exists(image_path)
-
-
     def switchToPreviousImage(self):
-        if  0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+        """
+        Переключает активное изображение на предыдущее.
+        """
+        if 0 <= self.activeFileIndex < self.totalFilesCount:
             self.saveActiveGrid()
-        
+
         self.activeFileIndex -= 1
-        
+
         while self.activeFileIndex >= 0 and not self.imageExists(self.getActiveFilename()):
             self.activeFileIndex -= 1
-    
-        if 0 <= self.activeFileIndex and self.activeFileIndex < self.totalFilesCount:
+
+        if 0 <= self.activeFileIndex < self.totalFilesCount:
             self.setActiveImage()
             return
-        
+
         self.loadDirectory()
-        if self.totalFilesCount != 0:
-            self.activeFileIndex = self.totalFilesCount
+        if self.totalFilesCount > 0:
+            self.activeFileIndex = self.totalFilesCount - 1
             self.switchToPreviousImage()
 
     def switchToNextImage(self):
-        print("Entering Folder.switchToNextImage(), activeFileIndex =", self.activeFileIndex)
+        """
+        Переключает активное изображение на следующее.
+        """
         if 0 <= self.activeFileIndex < self.totalFilesCount:
-            print("Calling saveActiveGrid()")
             self.saveActiveGrid()
+
         self.activeFileIndex += 1
-        print("Incremented activeFileIndex to", self.activeFileIndex)
+
         while self.activeFileIndex < self.totalFilesCount and not self.imageExists(self.getActiveFilename()):
-            print("Image does not exist for index", self.activeFileIndex)
             self.activeFileIndex += 1
+
         if 0 <= self.activeFileIndex < self.totalFilesCount:
-            print("Calling setActiveImage() with index", self.activeFileIndex)
             self.setActiveImage()
-            print("Active image set.")
             return
-        print("Reloading directory and resetting activeFileIndex")
+
         self.loadDirectory()
-        if self.totalFilesCount != 0:
+        if self.totalFilesCount > 0:
             self.activeFileIndex = -1
-            print("Recursively calling switchToNextImage() after reload.")
             self.switchToNextImage()
-        print("Exiting Folder.switchToNextImage()")
-        
-    
+
+    def setActiveImage(self):
+        """
+        Устанавливает текущее изображение как активное и обновляет его разметку.
+        """
+        imageFilename = self.getActiveFilename()
+        image = self.getImage(imageFilename)
+        grid = self.getGrid(imageFilename)
+        self.appState.setActiveImageAndGrid(image, grid)
+        self.updateCounter()
 
     def updateCounter(self):
+        """
+        Обновляет счетчик изображений.
+        """
         self.counterUpdateEvent.emit(self.activeFileIndex + 1, self.totalFilesCount)
+
+    def changeAllGridCellSizes(self, cellSize):
+        """
+        Изменяет размеры ячеек разметки для всех изображений в папке.
+
+        :param cellSize: Новый размер ячеек.
+        """
+        for fileIndex, filename in enumerate(self.imageFilenames):
+            if fileIndex == self.activeFileIndex:
+                continue
+
+            grid: ClassGrid = self.getGrid(filename)
+            if grid is None or not grid.canCellSizeFitInGrid(cellSize) or grid.hasSameCellSize(cellSize):
+                continue
+
+            grid.applyResizeStrategy(cellSize)
+            gridPath = self.getGridPath(filename)
+            with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+                ClassGridSerializer.toTxt(fileWrite, grid)
+
+            self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+
+    def createGrids(self, cellSize):
+        """
+        Создает разметку сетки для всех изображений в папке.
+
+        :param cellSize: Размер ячейки разметки.
+        """
+        for fileIndex, filename in enumerate(self.imageFilenames):
+            if fileIndex == self.activeFileIndex or not self.imageExists(filename):
+                continue
+
+            try:
+                with Image.open(self.getImagePath(filename)) as imageInfo:
+                    width, height = imageInfo.size
+                    gridSize = QSize(width, height)
+
+                if not (cellSize.width() <= gridSize.width() and cellSize.height() <= gridSize.height()):
+                    continue
+
+                gridPath = self.getGridPath(filename)
+                with open(gridPath, 'w', encoding='utf-8') as fileWrite:
+                    new_grid = ClassGrid(None, None, cellSize, gridSize)
+                    ClassGridSerializer.toTxt(fileWrite, new_grid)
+
+                self.sizeChangeProgressEvent.emit(fileIndex + 1, self.totalFilesCount)
+            except Exception:
+                pass
