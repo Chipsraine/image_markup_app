@@ -16,6 +16,8 @@ class Folder(QObject):
     counterUpdateEvent = pyqtSignal(int, int)  # Сигнал обновления счетчика изображений
 
     gridsFolderName = "grids"
+    
+    image_extensions = ['.jpg', '.png', '.bmp', '.webp', '.jpeg', '.gif', '.tiff']
 
     def __init__(self, folderPath, appState):
         """
@@ -53,9 +55,9 @@ class Folder(QObject):
         :param path: Путь к папке.
         :return: Список имен изображений.
         """
-        image_extensions = ['.jpg', '.png']
+        
         return [filename for filename in os.listdir(path)
-                if os.path.splitext(filename)[1].lower() in image_extensions and os.path.isfile(os.path.join(path, filename))]
+                if os.path.splitext(filename)[1].lower() in Folder.image_extensions and os.path.isfile(os.path.join(path, filename))]
 
     def getImagePath(self, filename):
         """

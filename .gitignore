@@ -3,5 +3,4 @@
 *.pyc
 *.pyo
 *.pyd
-/test_images/
-/test_images_copy/
+/test_images
